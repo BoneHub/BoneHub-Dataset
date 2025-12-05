@@ -1,2 +1,2 @@
-# BonyVerseSegmentation
-A bone segmentation pipeline (finetuning and post-processing)
+# BoneHub Segmentation
+A MonaiLabel Segmentation Workflow for Heterogeneous Medical Image Datasets
