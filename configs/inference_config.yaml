@@ -1,0 +1,16 @@
+inference:
+  batch_size: 1
+  device: cuda
+  output_dir: ./results
+  save_probability: true
+  sliding_window_size: [96, 96, 96]
+  overlap: 0.25
+
+evaluation:
+  include_background: false
+  metrics:
+    - dice
+    - iou
+    - hausdorff_distance
+    - sensitivity
+    - specificity

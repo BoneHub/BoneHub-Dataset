@@ -1,0 +1,15 @@
+project_name: BoneHub Segmentation
+version: 0.1.0
+author: BoneHub Team
+description: MONAI-based medical image segmentation framework
+
+paths:
+  data_dir: ./data
+  checkpoints_dir: ./checkpoints
+  results_dir: ./results
+  logs_dir: ./logs
+  cache_dir: ./cache
+
+logging:
+  level: INFO
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"

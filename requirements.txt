@@ -1,0 +1,9 @@
+monai
+torch --index-url https://download.pytorch.org/whl/cu128
+torchvision
+scikit-image
+scikit-learn
+nibabel
+tqdm
+PyYAML
+
