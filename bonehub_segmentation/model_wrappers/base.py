@@ -5,10 +5,45 @@ Ensures unified interface across different model architectures.
 
 from abc import ABC, abstractmethod
 from typing import Dict, Union, Optional
+from enum import Enum
 import numpy as np
 import torch
 import nibabel as nib
 import os
+
+
+class BoneID(Enum):
+    """unified bone labels."""
+
+    SACRUM = 1
+    HIP_LEFT = 2
+    HIP_RIGHT = 3
+    FEMUR_LEFT = 4
+    FEMUR_RIGHT = 5
+    PATELLA_LEFT = 6
+    PATELLA_RIGHT = 7
+    TIBIA_LEFT = 8
+    TIBIA_RIGHT = 9
+    FIBULA_LEFT = 10
+    FIBULA_RIGHT = 11
+    TALUS_LEFT = 12
+    TALUS_RIGHT = 13
+    CALCANEUS_LEFT = 14
+    CALCANEUS_RIGHT = 15
+    NAVICULAR_LEFT = 16
+    NAVICULAR_RIGHT = 17
+    CUBOID_LEFT = 18
+    CUBOID_RIGHT = 19
+    LATERAL_CUNEIFORM_LEFT = 20
+    LATERAL_CUNEIFORM_RIGHT = 21
+    INTERMEDIATE_CUNEIFORM_LEFT = 22
+    INTERMEDIATE_CUNEIFORM_RIGHT = 23
+    MEDIAL_CUNEIFORM_LEFT = 24
+    MEDIAL_CUNEIFORM_RIGHT = 25
+    METATARSALS_LEFT = 26
+    METATARSALS_RIGHT = 27
+    PHALANGES_LEFT = 28
+    PHALANGES_RIGHT = 29
 
 
 class SegmentationModelWrapper(ABC):
