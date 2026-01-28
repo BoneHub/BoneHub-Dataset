@@ -15,7 +15,7 @@ from . import utils
 from . import visualization
 
 # Convenient imports
-from .data_loaders import BaseDataLoader, StandardSegmentationLoader, create_train_val_split
+from .data_loaders import BaseDataLoader, create_train_val_split
 from .model_wrappers import (
     SegmentationModelWrapper,
     TotalSegmentatorWrapper,
@@ -27,7 +27,6 @@ from .model_wrappers import (
 __all__ = [
     # Data loaders
     "BaseDataLoader",
-    "StandardSegmentationLoader",
     "create_train_val_split",
     # Model wrappers
     "SegmentationModelWrapper",
