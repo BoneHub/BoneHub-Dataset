@@ -19,14 +19,12 @@ import numpy as np
 # %%
 data_root = r"C:\TestDatasets\073 kits23"  # Change this to your actual KiTS data path
 
-kits_loader = KiTSLoader(
-    data_root=data_root, mode="evaluation"
-)  # , target_spacing=(1.0, 1.0, 1.0), target_size=(128, 128, 128))
+kits_loader = KiTSLoader(data_root=data_root, mode="evaluation", target_spacing=(1.0, 1.0, 1.0), target_size=(128, 128, 128))
 
 print(f"Found {len(kits_loader)} cases")
 # %%
 train_dataloader = kits_loader.get_dataloader(
-    batch_size=1,
+    batch_size=2,
     shuffle=False,
     cache_data=False,
     num_workers=0,

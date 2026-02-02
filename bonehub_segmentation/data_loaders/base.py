@@ -1,6 +1,6 @@
 """Base classes for data loaders."""
 
-from typing import Dict, List, Optional, Union
+from typing import Optional, Union
 from pathlib import Path
 from monai.data import DataLoader, Dataset
 from monai.data import DataLoader
@@ -24,11 +24,8 @@ from monai.transforms import (
     Spacingd,
     Resized,
     ToTensord,
-    Identityd,
     CropForegroundd,
-    SpatialPadd,
     SelectItemsd,
-    NormalizeIntensityd,
 )
 
 
@@ -47,9 +44,11 @@ class SubjectData(dict):
         age: Optional[int] = None,
         gender: Optional[str] = None,
     ):
-        if self.gender and self.gender not in {"male", "female"}:
-            raise ValueError("gender must be either 'male', 'female', or None")
+        if gender and gender not in {"male", "female"}:
+            raise ValueError(f"gender must be either 'male', 'female', or None but got '{gender}' for image '{image}'")
         super().__init__()
+        if age:
+            age = int(age)
         self["image"] = image
         self["label"] = label
         self["metadata"] = {
@@ -220,7 +219,7 @@ class BaseDataLoader:
                 CropForegroundd(keys=keys, source_key="image", margin=10),
             ]
         )
-        
+
         if self.target_size is not None:
             transforms_list.append(Resized(keys=keys, spatial_size=self.target_size, mode="trilinear"))
 
