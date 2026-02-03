@@ -12,7 +12,7 @@ import nibabel as nib
 import os
 
 
-class BoneHubLabels(Enum):
+class BoneHubLabelMap(Enum):
     """unified bone labels."""
 
     BACKGROUND = 0
