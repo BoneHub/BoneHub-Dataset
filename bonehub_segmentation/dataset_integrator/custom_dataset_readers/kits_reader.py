@@ -42,6 +42,8 @@ class KiTSReader(BaseDatasetReader):
 
             subject_data = SubjectData(
                 image=str(image_path),
+                dataset_name="KiTS 2023",
+                case_id=case_id,
                 age=metadata[case_id]["age_at_nephrectomy"],
                 gender=metadata[case_id]["gender"],
             )

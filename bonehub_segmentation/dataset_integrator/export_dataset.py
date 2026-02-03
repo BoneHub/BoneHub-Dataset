@@ -3,6 +3,7 @@ import shutil
 from pathlib import Path
 import json
 import torch
+import numpy as np
 from monai.transforms import LoadImaged, SaveImaged, Compose, MapLabelValued, Lambdad
 import pydicom
 import pydicom_seg
@@ -31,6 +32,8 @@ def export_dataset_to_bonehub_format(dataset: list[SubjectData], export_path: st
 
     metadata = []
     for idx, item in enumerate(dataset, start=1):
+        # show a live progress bar in the console
+        print(f"Exporting subject {idx}/{len(dataset)} ...", end="\r")
         # Export image
         img_src = Path(item["image"])
         img_dst = Path(images_dir) / Path(f"img_{idx:06d}")
@@ -57,8 +60,8 @@ def export_dataset_to_bonehub_format(dataset: list[SubjectData], export_path: st
         metadata.append(
             {
                 "id": f"{idx:06d}",
-                "src_image_path": str(img_src),
-                "src_org_label_path": str(label_src),
+                "src_image": str(img_src),
+                "src_org_label": str(label_src),
                 "metadata": item["metadata"],
             }
         )
@@ -162,6 +165,16 @@ def export_org_dicom_labels_to_bonehub_labels(
     seg_reader = pydicom_seg.MultiClassReader()
     seg_result = seg_reader.read(seg_dcm)
     seg_image = seg_result.image
+    seg_array = sitk.GetArrayFromImage(seg_image)
+
+    # Map original labels to BoneHub labels
+    seg_array_mapped = np.zeros(shape=seg_array.shape, dtype=np.uint8)
+    for orig_label in seg_result.segment_infos.keys():
+        bonehub_label = label_mapping[seg_result.segment_infos[orig_label].SegmentLabel]
+        seg_array_mapped[seg_array == orig_label] = bonehub_label
+
+    seg_image_mapped = sitk.GetImageFromArray(seg_array_mapped)
+    seg_image_mapped.CopyInformation(seg_image)
 
     # Read the reference image series with SimpleITK (preserves LPS orientation)
     series_reader = sitk.ImageSeriesReader()
@@ -174,14 +187,7 @@ def export_org_dicom_labels_to_bonehub_labels(
     resampler.SetReferenceImage(ref_image)
     resampler.SetInterpolator(sitk.sitkNearestNeighbor)
     resampler.SetDefaultPixelValue(0)
-    seg_resampled = resampler.Execute(seg_image)
+    seg_resampled = resampler.Execute(seg_image_mapped)
 
     # Save as NIfTI
     sitk.WriteImage(seg_resampled, str(output_label_path) + ".nii.gz")
-
-    # Remap labels to BoneHub standardized labels
-    export_org_nii_nrrd_labels_to_bonehub_labels(
-        input_label_path=Path(str(output_label_path) + ".nii.gz"),
-        output_label_path=output_label_path,
-        label_mapping=label_mapping,
-    )
