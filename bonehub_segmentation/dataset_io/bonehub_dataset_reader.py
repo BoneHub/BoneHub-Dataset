@@ -1,6 +1,6 @@
 """Base classes for data loaders."""
 
-from typing import Optional, Union
+from typing import Optional
 from pathlib import Path
 from monai.data import DataLoader, Dataset
 from monai.data import DataLoader
@@ -28,67 +28,29 @@ from monai.transforms import (
     SelectItemsd,
 )
 
-
-class SubjectData(dict):
-    """Data dict for a subject."""
-
-    def __init__(
-        self,
-        image: Optional[str] = None,
-        label: Optional[str] = None,
-        dataset_name: Optional[str] = None,
-        case_id: Optional[str] = None,
-        age: Optional[int] = None,
-        gender: Optional[str] = None,
-        imaging_modality: Optional[str] = None,
-        imaging_manufacturer: Optional[str] = None,
-        subject_orientation: Optional[str] = None,
-    ):
-        super().__init__()
-        if gender and gender not in {"male", "female"}:
-            raise ValueError(f"gender must be either 'male', 'female', or None but got '{gender}' for image '{image}'")
-        if imaging_modality and imaging_modality not in ["CT", "MR"]:
-            raise ValueError(
-                f"imaging_modality must be either 'CT', 'MR', or None but got '{imaging_modality}' for image '{image}'"
-            )
-        if age:
-            age = int(age)
-        self["image"] = image
-        self["label"] = label
-        self["metadata"] = {
-            "dataset_name": dataset_name,
-            "case_id": case_id,
-            "age": age,
-            "gender": gender,
-            "imaging_modality": imaging_modality,
-            "imaging_manufacturer": imaging_manufacturer,
-            "subject_orientation": subject_orientation,
-        }
+from .base import BaseDatasetReader
 
 
-class BaseDataLoader:
-    """Base class for segmentation data loaders."""
+class BoneHubDatasetReader(BaseDatasetReader):
+    """Base class for loading datasets that have been constructed in BoneHub data structure format."""
 
     def __init__(
         self,
-        data_root: Union[str, Path],
+        dataset_root: Path,
         mode: str = "train",
         target_spacing: Optional[tuple[float]] = None,
         target_size: Optional[tuple[int]] = None,
         target_orientation: Optional[str] = "PLS",
     ):
-        """Initialize KiTS loader.
+        """Initialize BoneHub dataset reader.
 
         Args:
-            data_root: Root directory containing case folders
+            dataset_root: Root directory containing case folders in BoneHub format
             mode: "train" or "evaluation" or "inference" mode
             target_spacing: Desired voxel spacing (default: None, use original)
             target_size: Desired output spatial size (default: None, use original)
         """
-        self.data: list[SubjectData] = None
-        self.data_root = Path(data_root)
-        if not self.data_root.exists():
-            raise ValueError(f"{data_root} does not exist")
+        super().__init__(dataset_root)
         if mode not in {"train", "evaluation", "inference"}:
             raise ValueError("mode must be 'train', 'evaluation', or 'inference'")
         self.mode = mode
@@ -101,7 +63,6 @@ class BaseDataLoader:
                 raise ValueError("target_size must be a tuple of 3 ints")
         self.target_size = target_size
         self.target_orientation = target_orientation
-        self.data = self.run_data_reader()
 
     def run_data_reader(self):
         """Run data reader to populate self.data."""

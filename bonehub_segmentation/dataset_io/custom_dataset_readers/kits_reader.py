@@ -7,7 +7,7 @@ from typing import List
 import json
 
 from ..base import BaseDatasetReader
-from .. import SubjectData
+from ...constants import SubjectData
 
 
 class KiTSReader(BaseDatasetReader):

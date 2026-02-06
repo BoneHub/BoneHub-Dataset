@@ -9,12 +9,12 @@ import pydicom
 import pydicom_seg
 import SimpleITK as sitk
 
-from . import SubjectData
+from ..constants import SubjectData
 
 
-def export_dataset_to_bonehub_format(dataset: list[SubjectData], export_path: str, label_mapping: dict = None) -> None:
+def export_custom_dataset_to_bonehub_format(dataset: list[SubjectData], export_path: str, label_mapping: dict = None) -> None:
     """
-    Exports the given dataset to BoneHub standardized format.
+    Exports the given dataset to BoneHub standardized data structure.
 
     Args:
         dataset: The dataset to be exported.
@@ -123,12 +123,13 @@ def export_org_nii_nrrd_labels_to_bonehub_labels(input_label_path: Path, output_
             ),
             Lambdad(
                 keys=["label"],
-                func=lambda x: torch.where(torch.isin(x, torch.tensor(list(label_mapping.keys()))), x, 0),
+                func=lambda x: torch.where(torch.isin(x, torch.tensor(list(label_mapping.keys()), dtype=torch.uint16)), x, 0),
             ),
             MapLabelValued(
                 keys=["label"],
                 orig_labels=list(label_mapping.keys()),
                 target_labels=list(label_mapping.values()),
+                dtype=torch.uint16,
             ),
             SaveImaged(
                 keys=["label"],
@@ -138,7 +139,7 @@ def export_org_nii_nrrd_labels_to_bonehub_labels(input_label_path: Path, output_
                 resample=False,
                 separate_folder=False,
                 print_log=False,
-                output_dtype=torch.uint8,
+                output_dtype=torch.uint16,
             ),
         ]
     )
@@ -168,7 +169,7 @@ def export_org_dicom_labels_to_bonehub_labels(
     seg_array = sitk.GetArrayFromImage(seg_image)
 
     # Map original labels to BoneHub labels
-    seg_array_mapped = np.zeros(shape=seg_array.shape, dtype=np.uint8)
+    seg_array_mapped = np.zeros(shape=seg_array.shape, dtype=np.uint16)
     for orig_label in seg_result.segment_infos.keys():
         bonehub_label = label_mapping[seg_result.segment_infos[orig_label].SegmentLabel]
         seg_array_mapped[seg_array == orig_label] = bonehub_label

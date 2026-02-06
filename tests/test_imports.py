@@ -4,7 +4,7 @@ import sys
 
 sys.path.append(".")
 
-from bonehub_segmentation.data_loaders import StandardSegmentationLoader, create_train_val_split, MSDLoader
+from bonehub_segmentation.dataset_io import BaseDatasetReader, BoneHubDatasetReader, export_custom_dataset_to_bonehub_format
 from bonehub_segmentation.model_wrappers import (
     TotalSegmentatorWrapper,
     MOOSEWrapper,
@@ -15,9 +15,9 @@ from bonehub_segmentation.model_wrappers import (
 
 class ImportSmokeTests(unittest.TestCase):
     def test_data_loader_imports(self):
-        self.assertIsNotNone(StandardSegmentationLoader)
-        self.assertIsNotNone(create_train_val_split)
-        self.assertIsNotNone(MSDLoader)
+        self.assertIsNotNone(BaseDatasetReader)
+        self.assertIsNotNone(BoneHubDatasetReader)
+        self.assertIsNotNone(export_custom_dataset_to_bonehub_format)
 
     def test_model_wrapper_imports(self):
         self.assertIsNotNone(TotalSegmentatorWrapper)
