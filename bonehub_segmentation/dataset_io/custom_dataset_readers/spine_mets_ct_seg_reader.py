@@ -5,9 +5,10 @@ Dataset link: https://www.cancerimagingarchive.net/collection/spine-mets-ct-seg/
 
 from typing import List
 
-from ..base import BaseDatasetReader, get_dicom_subject_metadata
-from .. import SubjectData
-from .. import BoneHubLabelMap as BHL
+from ..base import BaseDatasetReader
+from ..utils import get_dicom_subject_metadata
+from ...constants import SubjectData
+from ...constants import BoneLabel as BL
 
 
 class SpineMetsCTSegReader(BaseDatasetReader):
@@ -62,28 +63,28 @@ class SpineMetsCTSegReader(BaseDatasetReader):
 
     def get_label_mapping(self):
         return {
-            "C1 vertebra": BHL.VERTEBRA_C1.value,
-            "C2 vertebra": BHL.VERTEBRA_C2.value,
-            "C3 vertebra": BHL.VERTEBRA_C3.value,
-            "C4 vertebra": BHL.VERTEBRA_C4.value,
-            "C5 vertebra": BHL.VERTEBRA_C5.value,
-            "C6 vertebra": BHL.VERTEBRA_C6.value,
-            "C7 vertebra": BHL.VERTEBRA_C7.value,
-            "T1 vertebra": BHL.VERTEBRA_T1.value,
-            "T2 vertebra": BHL.VERTEBRA_T2.value,
-            "T3 vertebra": BHL.VERTEBRA_T3.value,
-            "T4 vertebra": BHL.VERTEBRA_T4.value,
-            "T5 vertebra": BHL.VERTEBRA_T5.value,
-            "T6 vertebra": BHL.VERTEBRA_T6.value,
-            "T7 vertebra": BHL.VERTEBRA_T7.value,
-            "T8 vertebra": BHL.VERTEBRA_T8.value,
-            "T9 vertebra": BHL.VERTEBRA_T9.value,
-            "T10 vertebra": BHL.VERTEBRA_T10.value,
-            "T11 vertebra": BHL.VERTEBRA_T11.value,
-            "T12 vertebra": BHL.VERTEBRA_T12.value,
-            "L1 vertebra": BHL.VERTEBRA_L1.value,
-            "L2 vertebra": BHL.VERTEBRA_L2.value,
-            "L3 vertebra": BHL.VERTEBRA_L3.value,
-            "L4 vertebra": BHL.VERTEBRA_L4.value,
-            "L5 vertebra": BHL.VERTEBRA_L5.value,
+            "C1 vertebra": BL.VERTEBRA_C1.value,
+            "C2 vertebra": BL.VERTEBRA_C2.value,
+            "C3 vertebra": BL.VERTEBRA_C3.value,
+            "C4 vertebra": BL.VERTEBRA_C4.value,
+            "C5 vertebra": BL.VERTEBRA_C5.value,
+            "C6 vertebra": BL.VERTEBRA_C6.value,
+            "C7 vertebra": BL.VERTEBRA_C7.value,
+            "T1 vertebra": BL.VERTEBRA_T1.value,
+            "T2 vertebra": BL.VERTEBRA_T2.value,
+            "T3 vertebra": BL.VERTEBRA_T3.value,
+            "T4 vertebra": BL.VERTEBRA_T4.value,
+            "T5 vertebra": BL.VERTEBRA_T5.value,
+            "T6 vertebra": BL.VERTEBRA_T6.value,
+            "T7 vertebra": BL.VERTEBRA_T7.value,
+            "T8 vertebra": BL.VERTEBRA_T8.value,
+            "T9 vertebra": BL.VERTEBRA_T9.value,
+            "T10 vertebra": BL.VERTEBRA_T10.value,
+            "T11 vertebra": BL.VERTEBRA_T11.value,
+            "T12 vertebra": BL.VERTEBRA_T12.value,
+            "L1 vertebra": BL.VERTEBRA_L1.value,
+            "L2 vertebra": BL.VERTEBRA_L2.value,
+            "L3 vertebra": BL.VERTEBRA_L3.value,
+            "L4 vertebra": BL.VERTEBRA_L4.value,
+            "L5 vertebra": BL.VERTEBRA_L5.value,
         }

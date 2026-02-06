@@ -5,8 +5,9 @@ Dataset link: https://doi.org/10.7937/K9/TCIA.2015.NWTESAY1
 
 from typing import List
 
-from ..base import BaseDatasetReader, get_dicom_subject_metadata
-from .. import SubjectData
+from ..base import BaseDatasetReader
+from ..utils import get_dicom_subject_metadata
+from ...constants import SubjectData
 
 
 class ACRIN6664Reader(BaseDatasetReader):
