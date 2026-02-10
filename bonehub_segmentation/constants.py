@@ -52,17 +52,13 @@ class BoneLabel(Enum):
     VERTEBRA_L5 = 2305
     VERTEBRA_L6 = 2306
 
-    SACRUM = 2400  # whole sacrum with S1 vertebra and without coccyx
-    SACRUM_WITHOUT_S1 = 2401  # whole sacrum without S1 vertebra and coccyx
+    SACRUM = 2400  # whole sacrum
+    SACRUM_WITHOUT_S1 = 2401  # whole sacrum excluding S1 vertebra
     VERTEBRA_S1 = 2402  # only S1 vertebra of sacrum
-    SACRUM_WITH_COCCYX = 2403  # whole sacrum with S1 vertebra and coccyx
-    SACRUM_WITHOUT_S1_WITH_COCCYX = 2404  # whole sacrum without S1 vertebra and with coccyx
-
-    COCCYX = 2500  # only coccyx without sacrum
 
     # thorax
-    RIBS_WITH_STERNUM = 3000  # whole rib cage with sternum
-    RIBS_WITHOUT_STERNUM = 3001  # whole rib cage without sternum
+    RIBS = 3000  # whole rib cage excluding sternum
+    RIBS_WITH_STERNUM = 3001  # whole rib cage including sternum
     # The digit after the underscore is the rib number (1-12 from top to bottom).
     RIB_1_LEFT = 3101
     RIB_1_RIGHT = 3102
@@ -297,8 +293,8 @@ class BoneLabel(Enum):
     METATARSALS_BOTH = 7700  # whole metatarsals both sides
     METATARSALS_LEFT = 7701  # whole metatarsals left side
     METATARSALS_RIGHT = 7702  # whole metatarsals right side
-    METATARSAL_1_LEFT = 7703  # first metatarsal of left foot which is part of metatarsals
-    METATARSAL_1_RIGHT = 7704  # first metatarsal of right foot which is part of metatarsals
+    METATARSAL_1_LEFT = 7703  # first metatarsal of left foot (starting from the big toe) which is part of metatarsals
+    METATARSAL_1_RIGHT = 7704  # first metatarsal of right foot (starting from the big toe) which is part of metatarsals
     METATARSAL_2_LEFT = 7705  # second metatarsal of left foot which is part of metatarsals
     METATARSAL_2_RIGHT = 7706  # second metatarsal of right foot which is part of metatarsals
     METATARSAL_3_LEFT = 7707  # third metatarsal of left foot which is part of metatarsals
