@@ -1,0 +1,48 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bonehub"
+version = "0.1.0"
+description = "Medical image segmentation framework for lower-extremity bones with data schema and dataset conversion utilities"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [
+    {name = "Hamid Alavi"}
+]
+dependencies = [
+    "numpy==1.26.4",
+    "pydicom==2.4.4",
+    "pydicom-seg==0.4.1",
+    "monai",
+    "torch",
+    "torchvision",
+    "scikit-image",
+    "scikit-learn",
+    "nibabel",
+    "matplotlib",
+    "tqdm",
+    "PyYAML",
+    "pandas",
+    "openpyxl",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov",
+    "black",
+    "flake8",
+    "mypy",
+]
+
+[tool.setuptools]
+packages = [
+    "bonehub_data_schema",
+    "bonehub_dataset_convertor",
+    "bonehub_segmentation",
+]
+
+[tool.setuptools.package-data]
+"*" = ["*.yaml", "*.yml", "*.json"]

@@ -1,23 +1,4 @@
-import os
 from pathlib import Path
-import pydicom
-
-
-def get_dicom_subject_metadata(dicom_folder: str) -> dict:
-    first_file = next(f for f in os.listdir(dicom_folder) if f.endswith(".dcm") or f.endswith(".dicom"))
-    ds = pydicom.dcmread(os.path.join(dicom_folder, first_file), stop_before_pixels=True)
-    age = getattr(ds, "PatientAge", None)
-    if age:
-        age = "".join(filter(str.isdigit, age))
-
-    gender = getattr(ds, "PatientSex", None)
-    if gender:
-        gender = "male" if gender.lower() == "m" else "female" if gender.lower() == "f" else gender
-
-    return {
-        "age": age,
-        "gender": gender,
-    }
 
 
 def create_train_val_split(

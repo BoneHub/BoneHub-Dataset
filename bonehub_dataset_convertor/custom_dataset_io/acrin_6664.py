@@ -4,13 +4,14 @@ Dataset link: https://doi.org/10.7937/K9/TCIA.2015.NWTESAY1
 """
 
 from typing import List
+from pathlib import Path
 
-from ..base import BaseDatasetReader
-from ..utils import get_dicom_subject_metadata
-from ...constants import SubjectData
+from .. import BaseDatasetIO
+from .. import get_dicom_subject_metadata
+from bonehub_data_schema import SubjectInfo
 
 
-class ACRIN6664Reader(BaseDatasetReader):
+class ACRIN6664(BaseDatasetIO):
     """Data reader for TCIA CT Colonography with ARCIN 6664 dataset.
 
     Expected structure:
@@ -36,7 +37,8 @@ class ACRIN6664Reader(BaseDatasetReader):
 
     """
 
-    def run_data_reader(self) -> List[SubjectData]:
+    @staticmethod
+    def read_dataset(dataset_root: Path) -> List[SubjectInfo]:
         case_ids = sorted([d.name for d in (self.dataset_root / "CT COLONOGRAPHY").iterdir() if d.is_dir()])
         data = []
 

@@ -6,11 +6,12 @@ Dataset link: https://github.com/neheller/kits23
 from typing import List
 import json
 
-from ..base import BaseDatasetReader
-from ...constants import SubjectData
+from .. import BaseDatasetIO
+
+from bonehub_data_schema.subject_info import SubjectInfo
 
 
-class KiTSReader(BaseDatasetReader):
+class KiTS2023(BaseDatasetIO):
     """Data reader for KiTS 2023 challenge dataset.
 
     Expected structure:
@@ -25,7 +26,7 @@ class KiTSReader(BaseDatasetReader):
         │   └── ...
     """
 
-    def run_data_reader(self) -> List[SubjectData]:
+    def run_data_reader(self) -> List[SubjectInfo]:
         with open(self.dataset_root / "kits23.json") as f:
             metadata = json.load(f)
         metadata = {case["case_id"]: case for case in metadata}
@@ -40,7 +41,7 @@ class KiTSReader(BaseDatasetReader):
             if not image_path.exists():
                 raise ValueError(f"Missing imaging file for {case_id}")
 
-            subject_data = SubjectData(
+            subject_data = SubjectInfo(
                 image=str(image_path),
                 dataset_name="KiTS 2023",
                 case_id=case_id,

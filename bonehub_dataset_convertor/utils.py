@@ -9,10 +9,10 @@ import pydicom
 import pydicom_seg
 import SimpleITK as sitk
 
-from ..constants import SubjectData
+from bonehub_data_schema import SubjectInfo
 
 
-def export_custom_dataset_to_bonehub_format(dataset: list[SubjectData], export_path: str, label_mapping: dict = None) -> None:
+def export_custom_dataset_to_bonehub_format(dataset: list[SubjectInfo], export_path: str, label_mapping: dict = None) -> None:
     """
     Exports the given dataset to BoneHub standardized data structure.
 
@@ -74,6 +74,51 @@ def export_custom_dataset_to_bonehub_format(dataset: list[SubjectData], export_p
     print(f"Dataset exported to {export_path}")
 
 
+def export_custom_dataset_to_nnunet_format(dataset: list[SubjectInfo], export_path: str, label_mapping: dict = None) -> None:
+    """
+    Exports the given dataset to nnU-Net standardized data structure.
+
+    Args:
+        dataset: The dataset to be exported.
+        export_path (str): The path where the dataset will be exported.
+        label_mapping (dict, optional): A dictionary mapping original labels to nnU-Net standardized labels.
+    """
+
+    if not os.path.exists(export_path):
+        os.makedirs(export_path)
+
+    images_dir = os.path.join(export_path, "imagesTr")
+    labels_dir = os.path.join(export_path, "labelsTr")
+    os.makedirs(images_dir, exist_ok=True)
+    os.makedirs(labels_dir, exist_ok=True)
+
+    for idx, item in enumerate(dataset, start=1):
+        print(f"Exporting subject {idx}/{len(dataset)} ...", end="\r")
+        # Export image
+        img_src = Path(item["image"])
+        img_dst = Path(images_dir) / Path(f"{idx:06d}_0000")
+        if img_src.name.endswith("nii.gz"):
+            shutil.copy(img_src, img_dst.with_suffix(".nii.gz"))
+        else:
+            export_org_images_to_nii(img_src, img_dst)
+
+        # Export label
+        label_src = item["label"]
+        if label_src:
+            if not label_mapping:
+                raise ValueError("Label mapping is required to export labels.")
+            label_dst = Path(labels_dir) / Path(f"{idx:06d}")
+            label_src = Path(label_src)
+            if label_src.name.endswith("nii.gz") or label_src.name.endswith(".nii") or label_src.name.endswith(".nrrd"):
+                export_org_nii_nrrd_labels_to_bonehub_labels(label_src, label_dst, label_mapping)
+            elif label_src.name.endswith(".dcm") or label_src.name.endswith(".dicom"):
+                export_org_dicom_labels_to_bonehub_labels(img_src, label_src, label_dst, label_mapping)
+            else:
+                raise ValueError(f"Unsupported label file format: {label_src.suffix}")
+
+    print(f"Dataset exported to {export_path}")
+
+
 def export_org_images_to_nii(input_image_path: Path, output_image_path: Path):
     """
     Converts original images to NIfTI format (nii.gz) and saves the result.
@@ -104,10 +149,12 @@ def export_org_images_to_nii(input_image_path: Path, output_image_path: Path):
     saved_file = Path(output_image_path.parent) / (Path(input_image_path).name)
     if not str(saved_file).endswith(".nii.gz"):
         saved_file = saved_file.with_suffix(".nii.gz")
-    shutil.move(str(saved_file), str(output_image_path) + ".nii.gz")
+    output_file = output_image_path.with_suffix("")
+    output_file = output_file.with_suffix(".nii.gz")
+    shutil.move(saved_file, output_file)
 
 
-def export_org_nii_nrrd_labels_to_bonehub_labels(input_label_path: Path, output_label_path: Path, label_mapping: dict):
+def export_nii_nrrd_segmentation(input_label_path: Path, output_label_path: Path, label_mapping: dict):
     """
     Converts original labels to BoneHub standardized labels and saves the result.
     input_label_path: Path to the original label file.
@@ -123,13 +170,13 @@ def export_org_nii_nrrd_labels_to_bonehub_labels(input_label_path: Path, output_
             ),
             Lambdad(
                 keys=["label"],
-                func=lambda x: torch.where(torch.isin(x, torch.tensor(list(label_mapping.keys()), dtype=torch.uint16)), x, 0),
+                func=lambda x: torch.where(torch.isin(x, torch.tensor(list(label_mapping.keys()), dtype=torch.int)), x, 0),
             ),
             MapLabelValued(
                 keys=["label"],
                 orig_labels=list(label_mapping.keys()),
                 target_labels=list(label_mapping.values()),
-                dtype=torch.uint16,
+                dtype=torch.int,
             ),
             SaveImaged(
                 keys=["label"],
@@ -149,7 +196,7 @@ def export_org_nii_nrrd_labels_to_bonehub_labels(input_label_path: Path, output_
     saved_file = Path(output_label_path.parent) / (Path(input_label_path).name)
     if not str(saved_file).endswith(".nii.gz"):
         saved_file = saved_file.with_suffix(".nii.gz")
-    shutil.move(str(saved_file), str(output_label_path) + ".nii.gz")
+    shutil.move(saved_file, output_label_path)
 
 
 def export_org_dicom_labels_to_bonehub_labels(
@@ -192,3 +239,20 @@ def export_org_dicom_labels_to_bonehub_labels(
 
     # Save as NIfTI
     sitk.WriteImage(seg_resampled, str(output_label_path) + ".nii.gz")
+
+
+def get_dicom_subject_metadata(dicom_folder: str) -> dict:
+    first_file = next(f for f in os.listdir(dicom_folder) if f.endswith(".dcm") or f.endswith(".dicom"))
+    ds = pydicom.dcmread(os.path.join(dicom_folder, first_file), stop_before_pixels=True)
+    age = getattr(ds, "PatientAge", None)
+    if age:
+        age = "".join(filter(str.isdigit, age))
+
+    gender = getattr(ds, "PatientSex", None)
+    if gender:
+        gender = "male" if gender.lower() == "m" else "female" if gender.lower() == "f" else gender
+
+    return {
+        "age": age,
+        "gender": gender,
+    }
