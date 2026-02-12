@@ -6,8 +6,35 @@ Medical image segmentation framework for the lower-extremity bones built on MONA
 
 ### Installation
 
+This repository contains three pip-installable packages:
+- `bonehub_data_schema`: Standard data structures and constants for bone segmentation
+- `bonehub_dataset_convertor`: Tools for converting various medical imaging datasets
+- `bonehub_segmentation`: MONAI-based segmentation framework
+
+#### Install from source (development mode)
+
 ```bash
-pip install -r requirements.txt
+# Clone the repository
+git clone <repository-url>
+cd BoneHub-Segmentation
+
+# Install in editable mode (recommended for development)
+pip install -e .
+
+# Or install with development dependencies
+pip install -e ".[dev]"
+```
+
+#### Install from PyPI (when published)
+
+```bash
+pip install bonehub
+```
+
+#### Install from GitHub directly
+
+```bash
+pip install git+<repository-url>
 ```
 
 ### Train Custom Model

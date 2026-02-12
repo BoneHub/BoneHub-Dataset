@@ -1,13 +1,8 @@
-"""
-Global constants and shared definitions for BoneHub-Segmentation.
-"""
-
 from enum import Enum, unique
-from typing import Optional
 
 
 @unique
-class BoneLabel(Enum):
+class BoneLabelMap(Enum):
     """Unified bone labels."""
 
     BACKGROUND = 0  # background label
@@ -340,44 +335,9 @@ class BoneLabel(Enum):
     PHALANGE_FOOT_5_3_RIGHT = 7830
 
 
-class SubjectData(dict):
-    """Data dict for a subject."""
-
-    def __init__(
-        self,
-        image: Optional[str] = None,
-        label: Optional[str] = None,
-        dataset_name: Optional[str] = None,
-        case_id: Optional[str] = None,
-        age: Optional[int] = None,
-        gender: Optional[str] = None,
-        imaging_modality: Optional[str] = None,
-        imaging_manufacturer: Optional[str] = None,
-        subject_orientation: Optional[str] = None,
-    ):
-        super().__init__()
-        if gender and gender not in {"male", "female"}:
-            raise ValueError(f"gender must be either 'male', 'female', or None but got '{gender}' for image '{image}'")
-        if imaging_modality and imaging_modality not in ["CT", "MR"]:
-            raise ValueError(
-                f"imaging_modality must be either 'CT', 'MR', or None but got '{imaging_modality}' for image '{image}'"
-            )
-        if age:
-            age = int(age)
-        self["image"] = image
-        self["label"] = label
-        self["metadata"] = {
-            "dataset_name": dataset_name,
-            "case_id": case_id,
-            "age": age,
-            "gender": gender,
-            "imaging_modality": imaging_modality,
-            "imaging_manufacturer": imaging_manufacturer,
-            "subject_orientation": subject_orientation,
-        }
-
-
-__all__ = [
-    "BoneHubLabelMap",
-    "SubjectData",
-]
+bonehub_to_snomed = {  # use https://github.com/ENHANCE-PET/MOOSE/blob/main/moosez/mappings/SNOMED.py
+    BoneLabelMap.SKULL.value: {
+        "id": 118646007,
+        "name": "Entire bone of head",
+    },
+}
