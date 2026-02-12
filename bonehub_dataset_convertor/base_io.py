@@ -86,41 +86,34 @@ class BaseDatasetIO:
 
         self.custom_data_handlers[func_name] = func
 
-    def export_to_bonehub_format(self, output_root: Path, force_overwrite: bool = False):
+    def export_to_bonehub_format(self, output_root: Path, output_dataset_id: int, overwrite: bool = False):
         """
         Export the dataset to BoneHub's standard format.
         Args:
             output_root (Path): The root directory where the converted dataset will be saved.
-            force_overwrite (bool): Whether to overwrite existing files in the output directory. Default is False.
+            output_dataset_id (int): The dataset ID to assign to the exported dataset.
+            overwrite (bool): Whether to overwrite existing files in the output directory. Default is False.
         """
+        self.dataset_info["dataset_id"] = output_dataset_id
 
         dataset_path = output_root / f"Dataset_{self.dataset_info['dataset_id']:03d}"
-        dataset_info_path = output_root / "Metadata" / f"Dataset_info_{self.dataset_info['dataset_id']:03d}.json"
-        subject_info_path = output_root / "Metadata" / f"Subject_info_{self.dataset_info['dataset_id']:03d}.json"
+        dataset_info_path = dataset_path / f"Dataset_info_{self.dataset_info['dataset_id']:03d}.json"
+        subject_info_path = dataset_path / f"Subject_info_{self.dataset_info['dataset_id']:03d}.json"
 
-        if not force_overwrite:
+        if not overwrite:
             if dataset_path.exists():
                 raise FileExistsError(
-                    f"Dataset directory '{dataset_path}' already exists. Please choose a different location or remove the existing directory."
-                )
-            if dataset_info_path.exists():
-                raise FileExistsError(
-                    f"Metadata file '{dataset_info_path}' already exists. Please choose a different dataset ID or remove the existing file."
-                )
-            if subject_info_path.exists():
-                raise FileExistsError(
-                    f"Metadata file '{subject_info_path}' already exists. Please choose a different dataset ID or remove the existing file."
+                    f"Dataset directory '{dataset_path}' already exists. Please choose a different output_dataset_id or remove the existing directory."
                 )
 
         print(f"Reading dataset from '{self.dataset_root}'...")
         data = self.custom_data_handlers["read_dataset"](self.dataset_root)
         print(f"Finished reading dataset. Found {len(data)} subjects.")
-        os.makedirs(dataset_path, exist_ok=True)
-        os.makedirs(output_root / "Metadata", exist_ok=True)
-        with open(dataset_info_path, "w") as f:
-            json.dump(self.dataset_info, f, indent=4)
-        print(f"Dataset info saved to {dataset_info_path}")
         print(f"Exporting dataset to '{dataset_path}'...")
+        os.makedirs(dataset_path, exist_ok=True)
+        with open(dataset_info_path, "w") as f:
+            json.dump(self.dataset_info.sorted(), f, indent=4)
+        print(f"Dataset info saved to {dataset_info_path}")
         subject_info = []
 
         for subject_id, subject in enumerate(data, start=1):
@@ -137,7 +130,7 @@ class BaseDatasetIO:
                 os.makedirs(dataset_path / "Segmentation", exist_ok=True)
                 export_file_path = dataset_path / "Segmentation" / f"{subject.subject_info['subject_id']:06d}.nii.gz"
                 self.custom_data_handlers["export_segmentation"](subject.segmentation_path, export_file_path)
-                available_labels = set(nib.load(export_file_path).get_fdata().flatten())
+                available_labels = sorted(list(set(nib.load(export_file_path).get_fdata().flatten())))
                 if available_labels:
                     for label_id in available_labels:
                         if label_id == 0:
@@ -155,7 +148,7 @@ class BaseDatasetIO:
                 self.custom_data_handlers["export_nurbs"](subject.nurbs_path, export_folder_path)
                 print(f"Exported NURBS '{subject.nurbs_path}' to '{export_folder_path}'")
 
-            subject_info.append(sinfo)
+            subject_info.append(sinfo.sorted())
 
             with open(subject_info_path, "w") as f:
                 json.dump(subject_info, f, indent=4)
