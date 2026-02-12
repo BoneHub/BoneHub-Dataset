@@ -18,7 +18,7 @@ def check_valid_label_value(func):
 class SubjectInfo(dict):
     """Data dict for a subject."""
 
-    valid_keys = {
+    valid_keys = (
         "dataset_id",
         "subject_id",
         "subject_id_source",
@@ -30,7 +30,7 @@ class SubjectInfo(dict):
         "segmentation",
         "mesh",
         "nurbs",
-    }
+    )
 
     def __init__(
         self,
@@ -81,6 +81,11 @@ class SubjectInfo(dict):
         if key not in self.valid_keys:
             raise KeyError(f"Invalid key: {key}. Valid keys are: {self.valid_keys}")
         super().__setitem__(key, value)
+
+    def sorted(self) -> dict:
+        """Return the keys in the SubjectInfo dict sorted according to valid_keys order."""
+        sorted_dict = {key: self[key] for key in self.valid_keys if key in self}
+        return sorted_dict
 
     @check_valid_label_value
     def set_segmentation_value(self, label: BoneLabelMap, value: int):

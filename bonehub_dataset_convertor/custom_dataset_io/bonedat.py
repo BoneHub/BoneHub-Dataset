@@ -5,7 +5,7 @@ Dataset link: https://doi.org/10.5281/zenodo.15189760
 
 from pathlib import Path
 import shutil
-from bonehub_data_schema import SubjectInfo, BoneLabelMap as BLM
+from bonehub_data_schema import SubjectInfo, DatasetInfo, BoneLabelMap as BLM
 import pandas as pd
 
 from .. import BaseDatasetIO, ExtendedSubjectInfo
@@ -43,7 +43,11 @@ class BoneDat(BaseDatasetIO):
         5: BLM.VERTEBRA_L4.value,
     }
 
-    def __init__(self, dataset_root: Path, dataset_info: SubjectInfo):
+    def __init__(self, dataset_root: Path):
+        dataset_info = DatasetInfo(
+            name="BoneDat",
+            description="BoneDat dataset",
+        )
         super().__init__(dataset_root, dataset_info)
         self.register_data_handler("read_dataset", read_dataset)
         self.register_data_handler("export_image", export_image)

@@ -3,12 +3,14 @@ KiTS 2023 challenge dataset reader.
 Dataset link: https://github.com/neheller/kits23
 """
 
+from pathlib import Path
 from typing import List
 import json
+import shutil
 
-from .. import BaseDatasetIO
+from .. import BaseDatasetIO, ExtendedSubjectInfo
 
-from bonehub_data_schema.subject_info import SubjectInfo
+from bonehub_data_schema import SubjectInfo, DatasetInfo
 
 
 class KiTS2023(BaseDatasetIO):
@@ -26,36 +28,47 @@ class KiTS2023(BaseDatasetIO):
         │   └── ...
     """
 
-    def run_data_reader(self) -> List[SubjectInfo]:
-        with open(self.dataset_root / "kits23.json") as f:
-            metadata = json.load(f)
-        metadata = {case["case_id"]: case for case in metadata}
+    def __init__(self, dataset_root: Path):
+        dataset_info = DatasetInfo(
+            name="KiTS 2023",
+            description="Kidney Tumor Segmentation Challenge 2023 dataset",
+        )
+        super().__init__(dataset_root, dataset_info)
+        self.register_data_handler("read_dataset", read_dataset)
+        self.register_data_handler("export_image", export_image)
 
-        case_ids = sorted([d.name for d in self.dataset_root.iterdir() if d.is_dir() and d.name.startswith("case_")])
-        data = []
 
-        for case_id in case_ids:
-            case_dir = self.dataset_root / case_id
-            image_path = case_dir / "imaging.nii.gz"
+def read_dataset(dataset_root: Path) -> List[ExtendedSubjectInfo]:
+    with open(dataset_root / "kits23.json") as f:
+        metadata = json.load(f)
+    metadata = {case["case_id"]: case for case in metadata}
 
-            if not image_path.exists():
-                raise ValueError(f"Missing imaging file for {case_id}")
+    case_ids = sorted([d.name for d in dataset_root.iterdir() if d.is_dir() and d.name.startswith("case_")])
+    data = []
 
-            subject_data = SubjectInfo(
-                image=str(image_path),
-                dataset_name="KiTS 2023",
-                case_id=case_id,
+    for case_id in case_ids:
+        case_dir = dataset_root / case_id
+        image_path = case_dir / "imaging.nii.gz"
+
+        if not image_path.exists():
+            raise ValueError(f"Missing imaging file for {case_id}")
+
+        subject_info = ExtendedSubjectInfo(
+            img_path=str(image_path),
+            subject_info=SubjectInfo(
+                subject_id_source=case_id,
                 age=metadata[case_id]["age_at_nephrectomy"],
                 gender=metadata[case_id]["gender"],
-            )
+            ),
+        )
 
-            data.append(subject_data)
+        data.append(subject_info)
 
-        if not data:
-            raise ValueError(f"No valid cases found in {self.dataset_root}")
+    if not data:
+        raise ValueError(f"No valid cases found in {dataset_root}")
 
-        return data
+    return data
 
-    def get_label_mapping(self):
-        # KiTS does not provide segmentation labels for bones
-        return {}
+
+def export_image(input_file_path: Path, output_file_path: Path):
+    shutil.copy(input_file_path, output_file_path)

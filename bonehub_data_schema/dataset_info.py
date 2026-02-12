@@ -1,7 +1,7 @@
 class DatasetInfo(dict):
     """Data dict for a dataset."""
 
-    valid_keys = {
+    valid_keys = (
         "dataset_id",
         "name",
         "description",
@@ -10,7 +10,7 @@ class DatasetInfo(dict):
         "version",
         "release_date",
         "paper",
-    }
+    )
 
     def __init__(
         self,
@@ -56,3 +56,8 @@ class DatasetInfo(dict):
         if key not in self.valid_keys:
             raise KeyError(f"Invalid key: {key}. Valid keys are: {self.valid_keys}")
         super().__setitem__(key, value)
+
+    def sorted(self) -> dict:
+        """Return the keys in the DatasetInfo dict sorted according to valid_keys order."""
+        sorted_dict = {key: self[key] for key in self.valid_keys if key in self}
+        return sorted_dict
