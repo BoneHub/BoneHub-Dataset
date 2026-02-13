@@ -12,8 +12,8 @@ import SimpleITK as sitk
 def export_image(input_image_path: Path, output_image_path: Path):
     """
     Converts original images to NIfTI format (nii.gz) and saves the result.
-    input_image_path: Path to the original image file.
-    output_image_path: Path to save the converted image file.
+    input_image_path: Path to the original image file or folder (in case of DICOM series).
+    output_image_path: Path to save the converted image file ending with `.nii.gz`.
     """
     # Create and apply transform pipeline
     transform = Compose(
@@ -45,8 +45,8 @@ def export_image(input_image_path: Path, output_image_path: Path):
 def export_nii_nrrd_segmentation(input_label_path: Path, output_label_path: Path, label_mapping: dict):
     """
     Converts original labels to BoneHub standardized labels and saves the result.
-    input_label_path: Path to the original label file.
-    output_label_path: Path to save the converted label file.
+    input_label_path: Path to the original label file in NIfTI or NRRD format.
+    output_label_path: Path to save the converted label file ending with `.nii.gz`.
     label_mapping: Dictionary mapping original labels to BoneHub labels.
     """
     # Create and apply transform pipeline
@@ -92,7 +92,7 @@ def export_dicom_segmentation(input_image_path: Path, input_label_path: Path, ou
     Converts original DICOM labels to BoneHub standardized labels and saves the result.
     input_image_path: Path to the original DICOM image folder.
     input_label_path: Path to the original DICOM label file.
-    output_label_path: Path to save the converted label file.
+    output_label_path: Path to save the converted label file ending with `.nii.gz`.
     label_mapping: Dictionary mapping original labels to BoneHub labels.
     """
     seg_dcm = pydicom.dcmread(input_label_path)
