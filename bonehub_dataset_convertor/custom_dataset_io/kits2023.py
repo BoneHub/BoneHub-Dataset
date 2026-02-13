@@ -1,5 +1,5 @@
 """
-KiTS 2023 challenge dataset reader.
+KiTS 2023 challenge dataset.
 Dataset link: https://github.com/neheller/kits23
 """
 
