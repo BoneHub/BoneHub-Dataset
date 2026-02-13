@@ -24,9 +24,9 @@ class SubjectInfo(dict):
         "subject_id_source",
         "age",
         "gender",
-        "weight",  # in kg
-        "height",  # in cm
-        "bmi",  # body mass index
+        "weight",
+        "height",
+        "bmi",
         "imaging_modality",
         "imaging_manufacturer",
         "subject_orientation",
@@ -97,14 +97,6 @@ class SubjectInfo(dict):
             raise ValueError(f"Age must be an integer. Got {type(value)} instead.")
         if key in {"weight", "height", "bmi"} and not isinstance(value, (int, float)):
             raise ValueError(f"{key} must be a number (int or float). Got {type(value)} instead.")
-        # if key == "gender":
-        #     value = str(value).lower()
-        #     if value not in {"male", "female"}:
-        #         raise ValueError(f"Invalid gender value: {value}. Valid values are: 'male' or 'female'.")
-        # if key == "imaging_modality":
-        #     value = str(value).upper()
-        #     if value not in {"CT", "MRI"}:
-        #         raise ValueError(f"Invalid imaging modality: {value}. Valid values are: 'CT' or 'MRI'.")
         super().__setitem__(key, value)
 
     def sorted(self) -> dict:
