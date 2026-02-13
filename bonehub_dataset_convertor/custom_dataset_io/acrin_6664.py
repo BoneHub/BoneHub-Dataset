@@ -1,14 +1,14 @@
 """
-TCIA CT Colonography ARCIN 6664 dataset reader.
+TCIA CT Colonography ARCIN 6664 dataset.
 Dataset link: https://doi.org/10.7937/K9/TCIA.2015.NWTESAY1
 """
 
 from typing import List
 from pathlib import Path
 
-from .. import BaseDatasetIO
-from .. import get_dicom_subject_metadata
-from bonehub_data_schema import SubjectInfo
+from .. import BaseDatasetIO, ExtendedSubjectInfo
+from ..utils import get_dicom_subject_metadata, export_image
+from bonehub_data_schema import SubjectInfo, DatasetInfo
 
 
 class ACRIN6664(BaseDatasetIO):
@@ -37,40 +37,57 @@ class ACRIN6664(BaseDatasetIO):
 
     """
 
-    @staticmethod
-    def read_dataset(dataset_root: Path) -> List[SubjectInfo]:
-        case_ids = sorted([d.name for d in (self.dataset_root / "CT COLONOGRAPHY").iterdir() if d.is_dir()])
-        data = []
+    def __init__(self, dataset_root: Path):
+        dataset_info = DatasetInfo(
+            name="CT Colonography ARCIN 6664",
+            description="TCIA CT Colonography ARCIN 6664 dataset.",
+            url="https://doi.org/10.7937/K9/TCIA.2015.NWTESAY1",
+        )
+        super().__init__(dataset_root, dataset_info)
+        self.register_data_handler("read_dataset", read_dataset)
+        self.register_data_handler("export_image", _export_image)
 
-        for case_id in case_ids:
-            case_dir = self.dataset_root / "CT COLONOGRAPHY" / case_id
-            case_dir = next(case_dir.iterdir())
-            for subdir in case_dir.iterdir():
-                if "Colosupine" in subdir.name:
-                    dicom_image_dir = subdir
-                    subject_orientation = "supine"
-                elif "Coloprone" in subdir.name:
-                    dicom_image_dir = subdir
-                    subject_orientation = "prone"
-                else:
-                    continue
-                subject_metadata = get_dicom_subject_metadata(str(dicom_image_dir))
-                subject_data = SubjectData(
-                    image=str(dicom_image_dir),
-                    dataset_name="CT Colonography ARCIN 6664",
-                    case_id=case_id,
-                    age=subject_metadata["age"],
-                    gender=subject_metadata["gender"],
+
+def read_dataset(dataset_root: Path) -> List[ExtendedSubjectInfo]:
+    case_ids = sorted([d.name for d in (dataset_root / "CT COLONOGRAPHY").iterdir() if d.is_dir()])
+    data = []
+
+    for case_id in case_ids:
+        case_dir = dataset_root / "CT COLONOGRAPHY" / case_id
+        case_dir = next(case_dir.iterdir())
+        for subdir in case_dir.iterdir():
+            file_count = len(list(subdir.glob("*.dcm")))
+            if file_count <= 50:
+                continue
+            subject_orientation = ""
+            if "supin" in subdir.name.lower():
+                subject_orientation = "supine"
+            if "pron" in subdir.name.lower():
+                subject_orientation = "prone"
+
+            subject_metadata = get_dicom_subject_metadata(str(subdir))
+            gender = subject_metadata["gender"].lower()
+            age = subject_metadata["age"]
+            if age:
+                age = "".join([c for c in age if c.isdigit()])
+                age = int(age)
+            subject_data = ExtendedSubjectInfo(
+                img_path=str(subdir),
+                subject_info=SubjectInfo(
+                    subject_id_source=str(subdir.relative_to(dataset_root / "CT COLONOGRAPHY")),
+                    gender=gender,
+                    age=age,
                     subject_orientation=subject_orientation,
-                )
+                ),
+            )
 
-                data.append(subject_data)
+            data.append(subject_data)
 
-        if not data:
-            raise ValueError(f"No valid cases found in {self.dataset_root}")
+    if not data:
+        raise ValueError(f"No valid cases found in {dataset_root}")
 
-        return data
+    return data
 
-    def get_label_mapping(self):
-        # No specific labels defined for this dataset
-        return {}
+
+def _export_image(subject: ExtendedSubjectInfo, output_file_path: Path):
+    export_image(subject.img_path, output_file_path)

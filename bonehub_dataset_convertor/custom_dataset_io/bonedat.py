@@ -89,9 +89,9 @@ def read_dataset(dataset_root: Path) -> list[ExtendedSubjectInfo]:
     return data
 
 
-def export_image(input_file_path: Path, output_file_path: Path):
-    shutil.copy(input_file_path, output_file_path)
+def export_image(subject: ExtendedSubjectInfo, output_file_path: Path):
+    shutil.copy(subject.img_path, output_file_path)
 
 
-def export_segmentation(input_file_path: Path, output_file_path: Path):
-    export_nii_nrrd_segmentation(input_file_path, output_file_path, label_mapping=BoneDat.label_mapping)
+def export_segmentation(subject: ExtendedSubjectInfo, output_file_path: Path):
+    export_nii_nrrd_segmentation(subject.segmentation_path, output_file_path, label_mapping=BoneDat.label_mapping)

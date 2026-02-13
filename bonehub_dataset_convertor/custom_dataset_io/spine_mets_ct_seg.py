@@ -1,14 +1,16 @@
 """
-TCIA Spine-Mets-CT-SEG dataset reader.
+TCIA Spine-Mets-CT-SEG dataset.
 Dataset link: https://www.cancerimagingarchive.net/collection/spine-mets-ct-seg/
 """
 
 from typing import List
+from pathlib import Path
 
-from .. import BaseDatasetIO, get_dicom_subject_metadata
-
-from bonehub_data_schema import SubjectInfo
+from bonehub_data_schema import SubjectInfo, DatasetInfo
 from bonehub_data_schema import BoneLabelMap as BLM
+
+from .. import BaseDatasetIO, ExtendedSubjectInfo
+from ..utils import get_dicom_subject_metadata, export_image, export_dicom_segmentation
 
 
 class SpineMetsCTSeg(BaseDatasetIO):
@@ -29,62 +31,87 @@ class SpineMetsCTSeg(BaseDatasetIO):
                 │               1-003.dcm
     """
 
-    def run_data_reader(self) -> List[SubjectInfo]:
-        case_ids = sorted([d.name for d in (self.dataset_root / "Spine-Mets-CT-SEG").iterdir() if d.is_dir()])
-        data = []
+    label_map = {
+        "C1 vertebra": BLM.VERTEBRA_C1.value,
+        "C2 vertebra": BLM.VERTEBRA_C2.value,
+        "C3 vertebra": BLM.VERTEBRA_C3.value,
+        "C4 vertebra": BLM.VERTEBRA_C4.value,
+        "C5 vertebra": BLM.VERTEBRA_C5.value,
+        "C6 vertebra": BLM.VERTEBRA_C6.value,
+        "C7 vertebra": BLM.VERTEBRA_C7.value,
+        "T1 vertebra": BLM.VERTEBRA_T1.value,
+        "T2 vertebra": BLM.VERTEBRA_T2.value,
+        "T3 vertebra": BLM.VERTEBRA_T3.value,
+        "T4 vertebra": BLM.VERTEBRA_T4.value,
+        "T5 vertebra": BLM.VERTEBRA_T5.value,
+        "T6 vertebra": BLM.VERTEBRA_T6.value,
+        "T7 vertebra": BLM.VERTEBRA_T7.value,
+        "T8 vertebra": BLM.VERTEBRA_T8.value,
+        "T9 vertebra": BLM.VERTEBRA_T9.value,
+        "T10 vertebra": BLM.VERTEBRA_T10.value,
+        "T11 vertebra": BLM.VERTEBRA_T11.value,
+        "T12 vertebra": BLM.VERTEBRA_T12.value,
+        "L1 vertebra": BLM.VERTEBRA_L1.value,
+        "L2 vertebra": BLM.VERTEBRA_L2.value,
+        "L3 vertebra": BLM.VERTEBRA_L3.value,
+        "L4 vertebra": BLM.VERTEBRA_L4.value,
+        "L5 vertebra": BLM.VERTEBRA_L5.value,
+    }
 
-        for case_id in case_ids:
-            case_dir = self.dataset_root / "Spine-Mets-CT-SEG" / case_id
-            dicom_image_dir = None
-            dicom_label_file = None
-            study_dir = next(case_dir.iterdir())
-            for subdir in study_dir.iterdir():
-                if "segmentation" in subdir.name.lower():
-                    dicom_label_file = next(subdir.glob("*.dcm"))
-                else:
-                    dicom_image_dir = subdir
+    def __init__(self, dataset_root: str):
+        dataset_info = DatasetInfo(
+            name="Spine-Mets-CT-SEG",
+            description="TCIA Spine-Mets-CT-SEG dataset",
+            url="https://www.cancerimagingarchive.net/collection/spine-mets-ct-seg/",
+        )
+        super().__init__(dataset_root, dataset_info)
+        self.register_data_handler("read_dataset", read_dataset)
+        self.register_data_handler("export_image", _export_image)
+        self.register_data_handler("export_segmentation", export_segmentation)
 
-            subject_metadata = get_dicom_subject_metadata(str(dicom_image_dir))
-            subject_data = SubjectInfo(
-                image=str(dicom_image_dir),
-                label=str(dicom_label_file),
-                dataset_name="Spine-Mets-CT-SEG",
-                case_id=case_id,
-                age=subject_metadata["age"],
-                gender=subject_metadata["gender"],
-            )
 
-            data.append(subject_data)
+def read_dataset(dataset_root: Path) -> List[ExtendedSubjectInfo]:
+    case_ids = sorted([d.name for d in (dataset_root / "Spine-Mets-CT-SEG").iterdir() if d.is_dir()])
+    data = []
 
-        if not data:
-            raise ValueError(f"No valid cases found in {self.dataset_root}")
+    for case_id in case_ids:
+        case_dir = dataset_root / "Spine-Mets-CT-SEG" / case_id
+        dicom_image_dir = None
+        dicom_label_file = None
+        study_dir = next(case_dir.iterdir())
+        for subdir in study_dir.iterdir():
+            if "segmentation" in subdir.name.lower():
+                dicom_label_file = next(subdir.glob("*.dcm"))
+            else:
+                dicom_image_dir = subdir
 
-        return data
+        subject_metadata = get_dicom_subject_metadata(str(dicom_image_dir))
+        gender = subject_metadata["gender"].lower()
+        age = subject_metadata["age"]
+        if age:
+            age = "".join([c for c in age if c.isdigit()])
+            age = int(age)
+        subject_data = ExtendedSubjectInfo(
+            img_path=str(dicom_image_dir),
+            segmentation_path=str(dicom_label_file),
+            subject_info=SubjectInfo(
+                subject_id_source=case_id,
+                gender=gender,
+                age=age,
+            ),
+        )
 
-    def get_label_mapping(self):
-        return {
-            "C1 vertebra": BLM.VERTEBRA_C1.value,
-            "C2 vertebra": BLM.VERTEBRA_C2.value,
-            "C3 vertebra": BLM.VERTEBRA_C3.value,
-            "C4 vertebra": BLM.VERTEBRA_C4.value,
-            "C5 vertebra": BLM.VERTEBRA_C5.value,
-            "C6 vertebra": BLM.VERTEBRA_C6.value,
-            "C7 vertebra": BLM.VERTEBRA_C7.value,
-            "T1 vertebra": BLM.VERTEBRA_T1.value,
-            "T2 vertebra": BLM.VERTEBRA_T2.value,
-            "T3 vertebra": BLM.VERTEBRA_T3.value,
-            "T4 vertebra": BLM.VERTEBRA_T4.value,
-            "T5 vertebra": BLM.VERTEBRA_T5.value,
-            "T6 vertebra": BLM.VERTEBRA_T6.value,
-            "T7 vertebra": BLM.VERTEBRA_T7.value,
-            "T8 vertebra": BLM.VERTEBRA_T8.value,
-            "T9 vertebra": BLM.VERTEBRA_T9.value,
-            "T10 vertebra": BLM.VERTEBRA_T10.value,
-            "T11 vertebra": BLM.VERTEBRA_T11.value,
-            "T12 vertebra": BLM.VERTEBRA_T12.value,
-            "L1 vertebra": BLM.VERTEBRA_L1.value,
-            "L2 vertebra": BLM.VERTEBRA_L2.value,
-            "L3 vertebra": BLM.VERTEBRA_L3.value,
-            "L4 vertebra": BLM.VERTEBRA_L4.value,
-            "L5 vertebra": BLM.VERTEBRA_L5.value,
-        }
+        data.append(subject_data)
+
+    if not data:
+        raise ValueError(f"No valid cases found in {dataset_root}")
+
+    return data
+
+
+def _export_image(subject: ExtendedSubjectInfo, output_file_path: Path):
+    export_image(subject.img_path, output_file_path)
+
+
+def export_segmentation(subject: ExtendedSubjectInfo, output_file_path: Path):
+    export_dicom_segmentation(subject.img_path, subject.segmentation_path, output_file_path, SpineMetsCTSeg.label_map)

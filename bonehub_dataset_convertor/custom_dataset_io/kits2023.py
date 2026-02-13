@@ -57,8 +57,9 @@ def read_dataset(dataset_root: Path) -> List[ExtendedSubjectInfo]:
             img_path=str(image_path),
             subject_info=SubjectInfo(
                 subject_id_source=case_id,
-                age=metadata[case_id]["age_at_nephrectomy"],
+                age=int(metadata[case_id]["age_at_nephrectomy"]),
                 gender=metadata[case_id]["gender"],
+                bmi=metadata[case_id]["bmi"],
             ),
         )
 
@@ -70,5 +71,5 @@ def read_dataset(dataset_root: Path) -> List[ExtendedSubjectInfo]:
     return data
 
 
-def export_image(input_file_path: Path, output_file_path: Path):
-    shutil.copy(input_file_path, output_file_path)
+def export_image(subject: ExtendedSubjectInfo, output_file_path: Path):
+    shutil.copy(subject.img_path, output_file_path)

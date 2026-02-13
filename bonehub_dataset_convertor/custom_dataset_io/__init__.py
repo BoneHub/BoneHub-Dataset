@@ -3,7 +3,6 @@ input/output operations for custom medical image datasets.
 Add your custom dataset here.
 """
 
-# Import your custom readers here
 from .kits2023 import KiTS2023
 from .spine_mets_ct_seg import SpineMetsCTSeg
 from .acrin_6664 import ACRIN6664
