@@ -24,6 +24,9 @@ class SubjectInfo(dict):
         "subject_id_source",
         "age",
         "gender",
+        "weight",  # in kg
+        "height",  # in cm
+        "bmi",  # body mass index
         "imaging_modality",
         "imaging_manufacturer",
         "subject_orientation",
@@ -44,7 +47,10 @@ class SubjectInfo(dict):
                 - subject_id (int): Unique identifier for the subject within the dataset in BoneHub.
                 - subject_id_source (str): Subject ID from the original source.
                 - age (int): Age of the subject
-                - gender (str): Gender of the subject (male or female)
+                - gender (str): Gender of the subject (male or female or other)
+                - weight (float): Weight of the subject in kg
+                - height (float): Height of the subject in cm
+                - bmi (float): Body Mass Index of the subject
                 - imaging_modality (str): Imaging modality used (e.g., CT, MRI)
                 - imaging_manufacturer (str): Manufacturer of the imaging device (e.g., Siemens, GE, Philips)
                 - subject_orientation (str): Orientation of the subject in the image (e.g., supine, prone, left lateral, right lateral)
@@ -54,32 +60,51 @@ class SubjectInfo(dict):
         """
         super().__init__()
 
-        if not set(kwargs.keys()).issubset(self.valid_keys):
-            raise ValueError(f"Invalid keys: {set(kwargs.keys()) - self.valid_keys}. Valid keys are: {self.valid_keys}")
+        if not set(kwargs.keys()).issubset(set(self.valid_keys)):
+            raise ValueError(f"Invalid keys: {set(kwargs.keys()) - set(self.valid_keys)}. Valid keys are: {self.valid_keys}")
 
-        if (dataset_id := kwargs.get("dataset_id")) is not None:
+        if dataset_id := kwargs.get("dataset_id"):
             self["dataset_id"] = dataset_id
-        if (subject_id := kwargs.get("subject_id")) is not None:
+        if subject_id := kwargs.get("subject_id"):
             self["subject_id"] = subject_id
-
-        if (subject_id_source := kwargs.get("subject_id_source")) is not None:
+        if subject_id_source := kwargs.get("subject_id_source"):
             self["subject_id_source"] = subject_id_source
-
-        if (age := kwargs.get("age")) is not None:
+        if age := kwargs.get("age"):
             self["age"] = age
-        if (gender := kwargs.get("gender")) is not None:
+        if gender := kwargs.get("gender"):
             self["gender"] = gender
-
-        if (imaging_modality := kwargs.get("imaging_modality")) is not None:
+        if weight := kwargs.get("weight"):
+            self["weight"] = weight
+        if height := kwargs.get("height"):
+            self["height"] = height
+        if bmi := kwargs.get("bmi"):
+            self["bmi"] = bmi
+        if imaging_modality := kwargs.get("imaging_modality"):
             self["imaging_modality"] = imaging_modality
-        if (imaging_manufacturer := kwargs.get("imaging_manufacturer")) is not None:
+        if imaging_manufacturer := kwargs.get("imaging_manufacturer"):
             self["imaging_manufacturer"] = imaging_manufacturer
-        if (subject_orientation := kwargs.get("subject_orientation")) is not None:
+        if subject_orientation := kwargs.get("subject_orientation"):
             self["subject_orientation"] = subject_orientation
 
     def __setitem__(self, key, value):
         if key not in self.valid_keys:
             raise KeyError(f"Invalid key: {key}. Valid keys are: {self.valid_keys}")
+        if key in {"dataset_id", "subject_id"} and not isinstance(value, int):
+            raise ValueError(f"{key} must be an integer. Got {type(value)} instead.")
+        if key == "subject_id_source":
+            value = str(value).replace("\\", "/")  # Ensure consistent path format
+        if key == "age" and not isinstance(value, int):
+            raise ValueError(f"Age must be an integer. Got {type(value)} instead.")
+        if key in {"weight", "height", "bmi"} and not isinstance(value, (int, float)):
+            raise ValueError(f"{key} must be a number (int or float). Got {type(value)} instead.")
+        # if key == "gender":
+        #     value = str(value).lower()
+        #     if value not in {"male", "female"}:
+        #         raise ValueError(f"Invalid gender value: {value}. Valid values are: 'male' or 'female'.")
+        # if key == "imaging_modality":
+        #     value = str(value).upper()
+        #     if value not in {"CT", "MRI"}:
+        #         raise ValueError(f"Invalid imaging modality: {value}. Valid values are: 'CT' or 'MRI'.")
         super().__setitem__(key, value)
 
     def sorted(self) -> dict:

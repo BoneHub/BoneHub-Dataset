@@ -68,10 +68,10 @@ class BaseDatasetIO:
                 - 'export_nurbs'
             func: The callable function to register. Must match the expected signature:
                 - read_dataset: (dataset_root: Path) -> List[ExtendedSubjectInfo]
-                - export_image: (input_file_path: Path, output_file_path: Path) -> None
-                - export_segmentation: (input_file_path: Path, output_file_path: Path) -> None
-                - export_mesh: (input_folder_path: Path, output_folder_path: Path) -> None
-                - export_nurbs: (input_folder_path: Path, output_folder_path: Path) -> None
+                - export_image: (subject: ExtendedSubjectInfo, output_file_path: Path) -> None
+                - export_segmentation: (subject: ExtendedSubjectInfo, output_file_path: Path) -> None
+                - export_mesh: (subject: ExtendedSubjectInfo, output_folder_path: Path) -> None
+                - export_nurbs: (subject: ExtendedSubjectInfo, output_folder_path: Path) -> None
 
         Raises:
             ValueError: If func_name is invalid or func is not callable.
@@ -107,7 +107,7 @@ class BaseDatasetIO:
                 )
 
         print(f"Reading dataset from '{self.dataset_root}'...")
-        data = self.custom_data_handlers["read_dataset"](self.dataset_root)
+        data: list[ExtendedSubjectInfo] = self.custom_data_handlers["read_dataset"](self.dataset_root)
         print(f"Finished reading dataset. Found {len(data)} subjects.")
         print(f"Exporting dataset to '{dataset_path}'...")
         os.makedirs(dataset_path, exist_ok=True)
@@ -123,13 +123,21 @@ class BaseDatasetIO:
 
             if subject.img_path:
                 os.makedirs(dataset_path / "Image", exist_ok=True)
-                export_file_path = dataset_path / "Image" / f"{subject.subject_info['subject_id']:06d}.nii.gz"
-                self.custom_data_handlers["export_image"](subject.img_path, export_file_path)
+                export_file_path = (
+                    dataset_path
+                    / "Image"
+                    / f"{self.dataset_info['dataset_id']:03d}_{subject.subject_info['subject_id']:06d}.nii.gz"
+                )
+                self.custom_data_handlers["export_image"](subject, export_file_path)
                 print(f"Exported image '{subject.img_path}' to '{export_file_path}'")
             if subject.segmentation_path:
                 os.makedirs(dataset_path / "Segmentation", exist_ok=True)
-                export_file_path = dataset_path / "Segmentation" / f"{subject.subject_info['subject_id']:06d}.nii.gz"
-                self.custom_data_handlers["export_segmentation"](subject.segmentation_path, export_file_path)
+                export_file_path = (
+                    dataset_path
+                    / "Segmentation"
+                    / f"{self.dataset_info['dataset_id']:03d}_{subject.subject_info['subject_id']:06d}.nii.gz"
+                )
+                self.custom_data_handlers["export_segmentation"](subject, export_file_path)
                 available_labels = sorted(list(set(nib.load(export_file_path).get_fdata().flatten())))
                 if available_labels:
                     for label_id in available_labels:
@@ -139,13 +147,17 @@ class BaseDatasetIO:
                 print(f"Exported segmentation '{subject.segmentation_path}' to '{export_file_path}'")
             if subject.mesh_path:
                 os.makedirs(dataset_path / "Mesh", exist_ok=True)
-                export_folder_path = dataset_path / "Mesh" / f"{subject.subject_info['subject_id']:06d}"
-                self.custom_data_handlers["export_mesh"](subject.mesh_path, export_folder_path)
+                export_folder_path = (
+                    dataset_path / "Mesh" / f"{self.dataset_info['dataset_id']:03d}_{subject.subject_info['subject_id']:06d}"
+                )
+                self.custom_data_handlers["export_mesh"](subject, export_folder_path)
                 print(f"Exported mesh '{subject.mesh_path}' to '{export_folder_path}'")
             if subject.nurbs_path:
                 os.makedirs(dataset_path / "NURBS", exist_ok=True)
-                export_folder_path = dataset_path / "NURBS" / f"{subject.subject_info['subject_id']:06d}"
-                self.custom_data_handlers["export_nurbs"](subject.nurbs_path, export_folder_path)
+                export_folder_path = (
+                    dataset_path / "NURBS" / f"{self.dataset_info['dataset_id']:03d}_{subject.subject_info['subject_id']:06d}"
+                )
+                self.custom_data_handlers["export_nurbs"](subject, export_folder_path)
                 print(f"Exported NURBS '{subject.nurbs_path}' to '{export_folder_path}'")
 
             subject_info.append(sinfo.sorted())

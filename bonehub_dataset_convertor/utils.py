@@ -1,7 +1,6 @@
 import os
 import shutil
 from pathlib import Path
-import json
 import torch
 import numpy as np
 from monai.transforms import LoadImaged, SaveImaged, Compose, MapLabelValued, Lambdad
@@ -9,117 +8,8 @@ import pydicom
 import pydicom_seg
 import SimpleITK as sitk
 
-from bonehub_data_schema import SubjectInfo
 
-
-def export_custom_dataset_to_bonehub_format(dataset: list[SubjectInfo], export_path: str, label_mapping: dict = None) -> None:
-    """
-    Exports the given dataset to BoneHub standardized data structure.
-
-    Args:
-        dataset: The dataset to be exported.
-        export_path (str): The path where the dataset will be exported.
-        label_mapping (dict, optional): A dictionary mapping original labels to BoneHub standardized labels.
-    """
-
-    if not os.path.exists(export_path):
-        os.makedirs(export_path)
-
-    images_dir = os.path.join(export_path, "images")
-    labels_dir = os.path.join(export_path, "org_seg")
-    os.makedirs(images_dir, exist_ok=True)
-    os.makedirs(labels_dir, exist_ok=True)
-
-    metadata = []
-    for idx, item in enumerate(dataset, start=1):
-        # show a live progress bar in the console
-        print(f"Exporting subject {idx}/{len(dataset)} ...", end="\r")
-        # Export image
-        img_src = Path(item["image"])
-        img_dst = Path(images_dir) / Path(f"img_{idx:06d}")
-        if img_src.name.endswith("nii.gz"):
-            shutil.copy(img_src, img_dst.with_suffix(".nii.gz"))
-        else:
-            export_org_images_to_nii(img_src, img_dst)
-
-        # Export label
-        label_src = item["label"]
-        if label_src:
-            if not label_mapping:
-                raise ValueError("Label mapping is required to export labels.")
-            label_dst = Path(labels_dir) / Path(f"org_seg_{idx:06d}")
-            label_src = Path(label_src)
-            if label_src.name.endswith("nii.gz") or label_src.name.endswith(".nii") or label_src.name.endswith(".nrrd"):
-                export_org_nii_nrrd_labels_to_bonehub_labels(label_src, label_dst, label_mapping)
-            elif label_src.name.endswith(".dcm") or label_src.name.endswith(".dicom"):
-                export_org_dicom_labels_to_bonehub_labels(img_src, label_src, label_dst, label_mapping)
-            else:
-                raise ValueError(f"Unsupported label file format: {label_src.suffix}")
-
-        # metadata
-        metadata.append(
-            {
-                "id": f"{idx:06d}",
-                "src_image": str(img_src),
-                "src_org_label": str(label_src),
-                "metadata": item["metadata"],
-            }
-        )
-
-    # Save metadata
-    metadata_path = Path(export_path) / "metadata.json"
-    with open(metadata_path, "w") as f:
-        json.dump(metadata, f, indent=4)
-
-    print(f"Dataset exported to {export_path}")
-
-
-def export_custom_dataset_to_nnunet_format(dataset: list[SubjectInfo], export_path: str, label_mapping: dict = None) -> None:
-    """
-    Exports the given dataset to nnU-Net standardized data structure.
-
-    Args:
-        dataset: The dataset to be exported.
-        export_path (str): The path where the dataset will be exported.
-        label_mapping (dict, optional): A dictionary mapping original labels to nnU-Net standardized labels.
-    """
-
-    if not os.path.exists(export_path):
-        os.makedirs(export_path)
-
-    images_dir = os.path.join(export_path, "imagesTr")
-    labels_dir = os.path.join(export_path, "labelsTr")
-    os.makedirs(images_dir, exist_ok=True)
-    os.makedirs(labels_dir, exist_ok=True)
-
-    for idx, item in enumerate(dataset, start=1):
-        print(f"Exporting subject {idx}/{len(dataset)} ...", end="\r")
-        # Export image
-        img_src = Path(item["image"])
-        img_dst = Path(images_dir) / Path(f"{idx:06d}_0000")
-        if img_src.name.endswith("nii.gz"):
-            shutil.copy(img_src, img_dst.with_suffix(".nii.gz"))
-        else:
-            export_org_images_to_nii(img_src, img_dst)
-
-        # Export label
-        label_src = item["label"]
-        if label_src:
-            if not label_mapping:
-                raise ValueError("Label mapping is required to export labels.")
-            label_dst = Path(labels_dir) / Path(f"{idx:06d}")
-            label_src = Path(label_src)
-            if label_src.name.endswith("nii.gz") or label_src.name.endswith(".nii") or label_src.name.endswith(".nrrd"):
-                export_org_nii_nrrd_labels_to_bonehub_labels(label_src, label_dst, label_mapping)
-            elif label_src.name.endswith(".dcm") or label_src.name.endswith(".dicom"):
-                export_org_dicom_labels_to_bonehub_labels(img_src, label_src, label_dst, label_mapping)
-            else:
-                raise ValueError(f"Unsupported label file format: {label_src.suffix}")
-
-    print(f"Dataset exported to {export_path}")
-
-
-def export_org_images_to_nii(input_image_path: Path, output_image_path: Path):
+def export_image(input_image_path: Path, output_image_path: Path):
     """
     Converts original images to NIfTI format (nii.gz) and saves the result.
     input_image_path: Path to the original image file.
@@ -149,9 +39,7 @@ def export_org_images_to_nii(input_image_path: Path, output_image_path: Path):
     saved_file = Path(output_image_path.parent) / (Path(input_image_path).name)
     if not str(saved_file).endswith(".nii.gz"):
         saved_file = saved_file.with_suffix(".nii.gz")
-    output_file = output_image_path.with_suffix("")
-    output_file = output_file.with_suffix(".nii.gz")
-    shutil.move(saved_file, output_file)
+    shutil.move(saved_file, output_image_path)
 
 
 def export_nii_nrrd_segmentation(input_label_path: Path, output_label_path: Path, label_mapping: dict):
@@ -199,9 +87,7 @@ def export_nii_nrrd_segmentation(input_label_path: Path, output_label_path: Path
     shutil.move(saved_file, output_label_path)
 
 
-def export_org_dicom_labels_to_bonehub_labels(
-    input_image_path: Path, input_label_path: Path, output_label_path: Path, label_mapping: dict
-):
+def export_dicom_segmentation(input_image_path: Path, input_label_path: Path, output_label_path: Path, label_mapping: dict):
     """
     Converts original DICOM labels to BoneHub standardized labels and saves the result.
     input_image_path: Path to the original DICOM image folder.
