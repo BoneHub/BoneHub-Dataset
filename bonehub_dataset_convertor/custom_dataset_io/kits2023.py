@@ -56,7 +56,7 @@ def read_dataset(dataset_root: Path) -> List[DataSource]:
         data = DataSource(
             img_path=str(image_path),
             subject_info=SubjectInfo(
-                subject_id_source=case_id,
+                source_subject_path=case_id,
                 # TODO: confirm if this is the correct age field to use
                 # age=int(metadata[case_id]["age_at_nephrectomy"]),
                 gender=metadata[case_id]["gender"],

@@ -21,7 +21,7 @@ class SubjectInfo(dict):
     valid_keys = (
         "dataset_id",
         "subject_id",
-        "subject_id_source",
+        "source_subject_path",
         "age",
         "gender",
         "weight",
@@ -45,7 +45,7 @@ class SubjectInfo(dict):
             **kwargs: Optional keyword arguments for additional subject information. Valid keys are:
                 - dataset_id (int): Unique identifier for the dataset in BoneHub.
                 - subject_id (int): Unique identifier for the subject within the dataset in BoneHub.
-                - subject_id_source (str): Subject ID from the original source.
+                - source_subject_path (str): path to the subject in the source dataset.
                 - age (int): Age of the subject
                 - gender (str): Gender of the subject (male or female or other)
                 - weight (float): Weight of the subject in kg
@@ -67,8 +67,8 @@ class SubjectInfo(dict):
             self["dataset_id"] = dataset_id
         if subject_id := kwargs.get("subject_id"):
             self["subject_id"] = subject_id
-        if subject_id_source := kwargs.get("subject_id_source"):
-            self["subject_id_source"] = subject_id_source
+        if source_subject_path := kwargs.get("source_subject_path"):
+            self["source_subject_path"] = source_subject_path
         if age := kwargs.get("age"):
             self["age"] = age
         if gender := kwargs.get("gender"):
@@ -91,7 +91,7 @@ class SubjectInfo(dict):
             raise KeyError(f"Invalid key: {key}. Valid keys are: {self.valid_keys}")
         if key in {"dataset_id", "subject_id"} and not isinstance(value, int):
             raise ValueError(f"{key} must be an integer. Got {type(value)} instead.")
-        if key == "subject_id_source":
+        if key == "source_subject_path":
             value = str(value).replace("\\", "/")  # Ensure consistent path format
         if key == "age" and not isinstance(value, int):
             raise ValueError(f"Age must be an integer. Got {type(value)} instead.")

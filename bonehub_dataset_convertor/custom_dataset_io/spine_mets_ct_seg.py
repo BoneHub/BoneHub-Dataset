@@ -95,7 +95,7 @@ def read_dataset(dataset_root: Path) -> List[DataSource]:
             img_path=str(dicom_image_dir),
             segmentation_path=str(dicom_label_file),
             subject_info=SubjectInfo(
-                subject_id_source=case_id,
+                source_subject_path=case_id,
                 gender=gender,
                 age=age,
             ),

@@ -74,7 +74,7 @@ def read_dataset(dataset_root: Path) -> List[DataSource]:
             data = DataSource(
                 img_path=str(subdir),
                 subject_info=SubjectInfo(
-                    subject_id_source=str(subdir.relative_to(dataset_root / "CT COLONOGRAPHY")),
+                    source_subject_path=str(subdir.relative_to(dataset_root / "CT COLONOGRAPHY")),
                     gender=gender,
                     age=age,
                     subject_orientation=subject_orientation,
