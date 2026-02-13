@@ -8,7 +8,7 @@ import shutil
 from bonehub_data_schema import SubjectInfo, DatasetInfo, BoneLabelMap as BLM
 import pandas as pd
 
-from .. import BaseDatasetIO, ExtendedSubjectInfo
+from .. import BaseDatasetIO, DataSource
 from ..utils import export_nii_nrrd_segmentation
 
 
@@ -54,9 +54,9 @@ class BoneDat(BaseDatasetIO):
         self.register_data_handler("export_segmentation", export_segmentation)
 
 
-def read_dataset(dataset_root: Path) -> list[ExtendedSubjectInfo]:
+def read_dataset(dataset_root: Path) -> list[DataSource]:
     subject_dirs = sorted([d for d in (dataset_root / "raw").iterdir() if d.is_dir()])
-    data = []
+    datalist = []
 
     for subject_dir in subject_dirs:
         image_path = subject_dir / "original.nii.gz"
@@ -71,7 +71,7 @@ def read_dataset(dataset_root: Path) -> list[ExtendedSubjectInfo]:
         with open(subject_dir / "metadata.xlsx", "r") as f:
             metadata = pd.read_excel(subject_dir / "metadata.xlsx")
 
-        subject_info = ExtendedSubjectInfo(
+        data = DataSource(
             img_path=image_path,
             segmentation_path=segmentation_path,
             subject_info=SubjectInfo(
@@ -81,17 +81,17 @@ def read_dataset(dataset_root: Path) -> list[ExtendedSubjectInfo]:
             ),
         )
 
-        data.append(subject_info)
+        datalist.append(data)
 
-    if not data:
+    if not datalist:
         raise ValueError(f"No valid subjects found in {dataset_root}")
 
-    return data
+    return datalist
 
 
-def export_image(subject: ExtendedSubjectInfo, output_file_path: Path):
-    shutil.copy(subject.img_path, output_file_path)
+def export_image(data: DataSource, output_file_path: Path):
+    shutil.copyfile(data.img_path, output_file_path)
 
 
-def export_segmentation(subject: ExtendedSubjectInfo, output_file_path: Path):
-    export_nii_nrrd_segmentation(subject.segmentation_path, output_file_path, label_mapping=BoneDat.label_mapping)
+def export_segmentation(data: DataSource, output_file_path: Path):
+    export_nii_nrrd_segmentation(data.segmentation_path, output_file_path, label_mapping=BoneDat.label_mapping)

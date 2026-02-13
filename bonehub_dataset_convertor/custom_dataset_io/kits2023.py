@@ -8,7 +8,7 @@ from typing import List
 import json
 import shutil
 
-from .. import BaseDatasetIO, ExtendedSubjectInfo
+from .. import BaseDatasetIO, DataSource
 
 from bonehub_data_schema import SubjectInfo, DatasetInfo
 
@@ -38,13 +38,13 @@ class KiTS2023(BaseDatasetIO):
         self.register_data_handler("export_image", export_image)
 
 
-def read_dataset(dataset_root: Path) -> List[ExtendedSubjectInfo]:
+def read_dataset(dataset_root: Path) -> List[DataSource]:
     with open(dataset_root / "kits23.json") as f:
         metadata = json.load(f)
     metadata = {case["case_id"]: case for case in metadata}
 
     case_ids = sorted([d.name for d in dataset_root.iterdir() if d.is_dir() and d.name.startswith("case_")])
-    data = []
+    datalist = []
 
     for case_id in case_ids:
         case_dir = dataset_root / case_id
@@ -53,7 +53,7 @@ def read_dataset(dataset_root: Path) -> List[ExtendedSubjectInfo]:
         if not image_path.exists():
             raise ValueError(f"Missing imaging file for {case_id}")
 
-        subject_info = ExtendedSubjectInfo(
+        data = DataSource(
             img_path=str(image_path),
             subject_info=SubjectInfo(
                 subject_id_source=case_id,
@@ -63,13 +63,13 @@ def read_dataset(dataset_root: Path) -> List[ExtendedSubjectInfo]:
             ),
         )
 
-        data.append(subject_info)
+        datalist.append(data)
 
-    if not data:
+    if not datalist:
         raise ValueError(f"No valid cases found in {dataset_root}")
 
-    return data
+    return datalist
 
 
-def export_image(subject: ExtendedSubjectInfo, output_file_path: Path):
-    shutil.copy(subject.img_path, output_file_path)
+def export_image(data: DataSource, output_file_path: Path):
+    shutil.copyfile(data.img_path, output_file_path)

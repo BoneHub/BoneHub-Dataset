@@ -6,7 +6,7 @@ Dataset link: https://doi.org/10.7937/K9/TCIA.2015.NWTESAY1
 from typing import List
 from pathlib import Path
 
-from .. import BaseDatasetIO, ExtendedSubjectInfo
+from .. import BaseDatasetIO, DataSource
 from ..utils import get_dicom_subject_metadata, export_image
 from bonehub_data_schema import SubjectInfo, DatasetInfo
 
@@ -48,9 +48,9 @@ class ACRIN6664(BaseDatasetIO):
         self.register_data_handler("export_image", _export_image)
 
 
-def read_dataset(dataset_root: Path) -> List[ExtendedSubjectInfo]:
+def read_dataset(dataset_root: Path) -> List[DataSource]:
     case_ids = sorted([d.name for d in (dataset_root / "CT COLONOGRAPHY").iterdir() if d.is_dir()])
-    data = []
+    datalist = []
 
     for case_id in case_ids:
         case_dir = dataset_root / "CT COLONOGRAPHY" / case_id
@@ -71,7 +71,7 @@ def read_dataset(dataset_root: Path) -> List[ExtendedSubjectInfo]:
             if age:
                 age = "".join([c for c in age if c.isdigit()])
                 age = int(age)
-            subject_data = ExtendedSubjectInfo(
+            data = DataSource(
                 img_path=str(subdir),
                 subject_info=SubjectInfo(
                     subject_id_source=str(subdir.relative_to(dataset_root / "CT COLONOGRAPHY")),
@@ -81,13 +81,13 @@ def read_dataset(dataset_root: Path) -> List[ExtendedSubjectInfo]:
                 ),
             )
 
-            data.append(subject_data)
+            datalist.append(data)
 
-    if not data:
+    if not datalist:
         raise ValueError(f"No valid cases found in {dataset_root}")
 
-    return data
+    return datalist
 
 
-def _export_image(subject: ExtendedSubjectInfo, output_file_path: Path):
-    export_image(subject.img_path, output_file_path)
+def _export_image(data: DataSource, output_file_path: Path):
+    export_image(data.img_path, output_file_path)

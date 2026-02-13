@@ -9,7 +9,7 @@ from pathlib import Path
 from bonehub_data_schema import SubjectInfo, DatasetInfo
 from bonehub_data_schema import BoneLabelMap as BLM
 
-from .. import BaseDatasetIO, ExtendedSubjectInfo
+from .. import BaseDatasetIO, DataSource
 from ..utils import get_dicom_subject_metadata, export_image, export_dicom_segmentation
 
 
@@ -70,9 +70,9 @@ class SpineMetsCTSeg(BaseDatasetIO):
         self.register_data_handler("export_segmentation", export_segmentation)
 
 
-def read_dataset(dataset_root: Path) -> List[ExtendedSubjectInfo]:
+def read_dataset(dataset_root: Path) -> List[DataSource]:
     case_ids = sorted([d.name for d in (dataset_root / "Spine-Mets-CT-SEG").iterdir() if d.is_dir()])
-    data = []
+    datalist = []
 
     for case_id in case_ids:
         case_dir = dataset_root / "Spine-Mets-CT-SEG" / case_id
@@ -91,7 +91,7 @@ def read_dataset(dataset_root: Path) -> List[ExtendedSubjectInfo]:
         if age:
             age = "".join([c for c in age if c.isdigit()])
             age = int(age)
-        subject_data = ExtendedSubjectInfo(
+        data = DataSource(
             img_path=str(dicom_image_dir),
             segmentation_path=str(dicom_label_file),
             subject_info=SubjectInfo(
@@ -101,17 +101,17 @@ def read_dataset(dataset_root: Path) -> List[ExtendedSubjectInfo]:
             ),
         )
 
-        data.append(subject_data)
+        datalist.append(data)
 
-    if not data:
+    if not datalist:
         raise ValueError(f"No valid cases found in {dataset_root}")
 
-    return data
+    return datalist
 
 
-def _export_image(subject: ExtendedSubjectInfo, output_file_path: Path):
-    export_image(subject.img_path, output_file_path)
+def _export_image(data: DataSource, output_file_path: Path):
+    export_image(data.img_path, output_file_path)
 
 
-def export_segmentation(subject: ExtendedSubjectInfo, output_file_path: Path):
-    export_dicom_segmentation(subject.img_path, subject.segmentation_path, output_file_path, SpineMetsCTSeg.label_map)
+def export_segmentation(data: DataSource, output_file_path: Path):
+    export_dicom_segmentation(data.img_path, data.segmentation_path, output_file_path, SpineMetsCTSeg.label_map)
