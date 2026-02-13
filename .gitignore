@@ -218,5 +218,5 @@ __marimo__/
 # vscode
 .vscode/
 
-# test examples
-test_examples/
+# test folders
+test_*
