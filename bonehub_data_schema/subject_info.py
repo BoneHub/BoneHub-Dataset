@@ -28,8 +28,6 @@ class SubjectInfo(dict):
         "height",
         "bmi",
         "imaging_modality",
-        "imaging_manufacturer",
-        "subject_orientation",
         "segmentation",
         "mesh",
         "nurbs",
@@ -52,8 +50,6 @@ class SubjectInfo(dict):
                 - height (float): Height of the subject in cm
                 - bmi (float): Body Mass Index of the subject
                 - imaging_modality (str): Imaging modality used (e.g., CT, MRI)
-                - imaging_manufacturer (str): Manufacturer of the imaging device (e.g., Siemens, GE, Philips)
-                - subject_orientation (str): Orientation of the subject in the image (e.g., supine, prone, left lateral, right lateral)
                 - segmentation (dict): Dictionary mapping LabelMap labels to their availability values for segmentation.
                 - mesh (dict): Dictionary mapping LabelMap labels to their availability values for mesh.
                 - nurbs (dict): Dictionary mapping LabelMap labels to their availability values for NURBS.
@@ -81,10 +77,6 @@ class SubjectInfo(dict):
             self["bmi"] = bmi
         if imaging_modality := kwargs.get("imaging_modality"):
             self["imaging_modality"] = imaging_modality
-        if imaging_manufacturer := kwargs.get("imaging_manufacturer"):
-            self["imaging_manufacturer"] = imaging_manufacturer
-        if subject_orientation := kwargs.get("subject_orientation"):
-            self["subject_orientation"] = subject_orientation
 
     def __setitem__(self, key, value):
         if key not in self.valid_keys:

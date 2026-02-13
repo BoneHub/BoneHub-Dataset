@@ -133,12 +133,13 @@ def get_dicom_subject_metadata(dicom_folder: str) -> dict:
     age = getattr(ds, "PatientAge", None)
     if age:
         age = "".join(filter(str.isdigit, age))
+        age = int(age)
 
     gender = getattr(ds, "PatientSex", None)
-    if gender:
-        gender = "male" if gender.lower() == "m" else "female" if gender.lower() == "f" else gender
+    modality = getattr(ds, "Modality", None)
 
     return {
         "age": age,
         "gender": gender,
+        "modality": modality,
     }
