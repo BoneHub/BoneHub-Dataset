@@ -59,25 +59,15 @@ def read_dataset(dataset_root: Path) -> List[DataSource]:
             file_count = len(list(subdir.glob("*.dcm")))
             if file_count <= 50:
                 continue
-            subject_orientation = ""
-            if "supin" in subdir.name.lower():
-                subject_orientation = "supine"
-            if "pron" in subdir.name.lower():
-                subject_orientation = "prone"
 
             subject_metadata = get_dicom_subject_metadata(str(subdir))
-            gender = subject_metadata["gender"].lower()
-            age = subject_metadata["age"]
-            if age:
-                age = "".join([c for c in age if c.isdigit()])
-                age = int(age)
             data = DataSource(
                 img_path=str(subdir),
                 subject_info=SubjectInfo(
                     source_subject_path=str(subdir.relative_to(dataset_root / "CT COLONOGRAPHY")),
-                    gender=gender,
-                    age=age,
-                    subject_orientation=subject_orientation,
+                    age=subject_metadata["age"],
+                    gender=subject_metadata["gender"],
+                    imaging_modality=subject_metadata["modality"],
                 ),
             )
 

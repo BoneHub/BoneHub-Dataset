@@ -86,18 +86,14 @@ def read_dataset(dataset_root: Path) -> List[DataSource]:
                 dicom_image_dir = subdir
 
         subject_metadata = get_dicom_subject_metadata(str(dicom_image_dir))
-        gender = subject_metadata["gender"].lower()
-        age = subject_metadata["age"]
-        if age:
-            age = "".join([c for c in age if c.isdigit()])
-            age = int(age)
         data = DataSource(
             img_path=str(dicom_image_dir),
             segmentation_path=str(dicom_label_file),
             subject_info=SubjectInfo(
                 source_subject_path=case_id,
-                gender=gender,
-                age=age,
+                age=subject_metadata["age"],
+                gender=subject_metadata["gender"],
+                imaging_modality=subject_metadata["modality"],
             ),
         )
 

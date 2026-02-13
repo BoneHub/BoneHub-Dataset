@@ -78,6 +78,7 @@ def read_dataset(dataset_root: Path) -> list[DataSource]:
                 source_subject_path=subject_dir.name,
                 age=int(metadata["CT date"].iloc[0]) - int(metadata["born"].iloc[0]),
                 gender=_gender_mapping[metadata["sex"].iloc[0].lower()],
+                imaging_modality="CT",
             ),
         )
 

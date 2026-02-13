@@ -61,6 +61,7 @@ def read_dataset(dataset_root: Path) -> List[DataSource]:
                 # age=int(metadata[case_id]["age_at_nephrectomy"]),
                 gender=metadata[case_id]["gender"],
                 bmi=metadata[case_id]["bmi"],
+                imaging_modality="CT",
             ),
         )
 
