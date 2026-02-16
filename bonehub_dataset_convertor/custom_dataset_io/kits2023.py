@@ -4,7 +4,6 @@ Dataset link: https://github.com/neheller/kits23
 """
 
 from pathlib import Path
-from typing import List
 import json
 import shutil
 
@@ -38,7 +37,7 @@ class KiTS2023(BaseDatasetIO):
         self.register_data_handler("export_image", export_image)
 
 
-def read_dataset(dataset_root: Path) -> List[DataSource]:
+def read_dataset(dataset_root: Path) -> list[DataSource]:
     with open(dataset_root / "kits23.json") as f:
         metadata = json.load(f)
     metadata = {case["case_id"]: case for case in metadata}
@@ -62,6 +61,7 @@ def read_dataset(dataset_root: Path) -> List[DataSource]:
                 gender=metadata[case_id]["gender"],
                 bmi=metadata[case_id]["bmi"],
                 imaging_modality="CT",
+                image=1,
             ),
         )
 

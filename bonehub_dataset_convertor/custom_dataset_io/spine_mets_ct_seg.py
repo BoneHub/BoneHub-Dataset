@@ -3,7 +3,6 @@ TCIA Spine-Mets-CT-SEG dataset.
 Dataset link: https://www.cancerimagingarchive.net/collection/spine-mets-ct-seg/
 """
 
-from typing import List
 from pathlib import Path
 
 from bonehub_data_schema import SubjectInfo, DatasetInfo
@@ -58,7 +57,7 @@ class SpineMetsCTSeg(BaseDatasetIO):
         "L5 vertebra": BLM.VERTEBRA_L5.value,
     }
 
-    def __init__(self, dataset_root: str):
+    def __init__(self, dataset_root: Path):
         dataset_info = DatasetInfo(
             name="Spine-Mets-CT-SEG",
             description="TCIA Spine-Mets-CT-SEG dataset",
@@ -70,7 +69,7 @@ class SpineMetsCTSeg(BaseDatasetIO):
         self.register_data_handler("export_segmentation", export_segmentation)
 
 
-def read_dataset(dataset_root: Path) -> List[DataSource]:
+def read_dataset(dataset_root: Path) -> list[DataSource]:
     case_ids = sorted([d.name for d in (dataset_root / "Spine-Mets-CT-SEG").iterdir() if d.is_dir()])
     datalist = []
 
@@ -94,6 +93,7 @@ def read_dataset(dataset_root: Path) -> List[DataSource]:
                 age=subject_metadata["age"],
                 gender=subject_metadata["gender"],
                 imaging_modality=subject_metadata["modality"],
+                image=1,
             ),
         )
 

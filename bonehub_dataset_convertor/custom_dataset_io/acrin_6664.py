@@ -3,7 +3,6 @@ TCIA CT Colonography ARCIN 6664 dataset.
 Dataset link: https://doi.org/10.7937/K9/TCIA.2015.NWTESAY1
 """
 
-from typing import List
 from pathlib import Path
 
 from .. import BaseDatasetIO, DataSource
@@ -48,7 +47,7 @@ class ACRIN6664(BaseDatasetIO):
         self.register_data_handler("export_image", _export_image)
 
 
-def read_dataset(dataset_root: Path) -> List[DataSource]:
+def read_dataset(dataset_root: Path) -> list[DataSource]:
     case_ids = sorted([d.name for d in (dataset_root / "CT COLONOGRAPHY").iterdir() if d.is_dir()])
     datalist = []
 
@@ -68,6 +67,7 @@ def read_dataset(dataset_root: Path) -> List[DataSource]:
                     age=subject_metadata["age"],
                     gender=subject_metadata["gender"],
                     imaging_modality=subject_metadata["modality"],
+                    image=1,
                 ),
             )
 

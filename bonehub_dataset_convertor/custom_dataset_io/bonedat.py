@@ -12,9 +12,6 @@ from .. import BaseDatasetIO, DataSource
 from ..utils import export_nii_nrrd_segmentation
 
 
-_gender_mapping = {"f": "female", "m": "male"}
-
-
 class BoneDat(BaseDatasetIO):
     """Data reader for BoneDat dataset.
 
@@ -77,8 +74,9 @@ def read_dataset(dataset_root: Path) -> list[DataSource]:
             subject_info=SubjectInfo(
                 source_subject_path=subject_dir.name,
                 age=int(metadata["CT date"].iloc[0]) - int(metadata["born"].iloc[0]),
-                gender=_gender_mapping[metadata["sex"].iloc[0].lower()],
+                gender=metadata["sex"].iloc[0],
                 imaging_modality="CT",
+                image=1,
             ),
         )
 
