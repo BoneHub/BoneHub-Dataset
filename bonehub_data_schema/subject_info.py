@@ -28,6 +28,7 @@ class SubjectInfo(dict):
         "height",
         "bmi",
         "imaging_modality",
+        "image",
         "segmentation",
         "mesh",
         "nurbs",
@@ -44,12 +45,13 @@ class SubjectInfo(dict):
                 - dataset_id (int): Unique identifier for the dataset in BoneHub.
                 - subject_id (int): Unique identifier for the subject within the dataset in BoneHub.
                 - source_subject_path (str): path to the subject in the source dataset.
-                - age (int): Age of the subject
-                - gender (str): Gender of the subject (male or female or other)
-                - weight (float): Weight of the subject in kg
-                - height (float): Height of the subject in cm
-                - bmi (float): Body Mass Index of the subject
-                - imaging_modality (str): Imaging modality used (e.g., CT, MRI)
+                - age (int): Age of the subject.
+                - gender (str): Gender of the subject (male or female or other).
+                - weight (float): Weight of the subject in kg.
+                - height (float): Height of the subject in cm.
+                - bmi (float): Body Mass Index of the subject.
+                - imaging_modality (str): Imaging modality used (e.g., CT, MRI).
+                - image (int): availability value for the image (1 if available, 0 if not available).
                 - segmentation (dict): Dictionary mapping LabelMap labels to their availability values for segmentation.
                 - mesh (dict): Dictionary mapping LabelMap labels to their availability values for mesh.
                 - nurbs (dict): Dictionary mapping LabelMap labels to their availability values for NURBS.
@@ -77,6 +79,10 @@ class SubjectInfo(dict):
             self["bmi"] = bmi
         if imaging_modality := kwargs.get("imaging_modality"):
             self["imaging_modality"] = imaging_modality
+        if image := kwargs.get("image"):
+            self["image"] = image
+        else:
+            raise ValueError("Image availability must be provided (1 if available, 0 if not available).")
 
     def __setitem__(self, key, value):
         if key not in self.valid_keys:
@@ -89,6 +95,10 @@ class SubjectInfo(dict):
             raise ValueError(f"Age must be an integer. Got {type(value)} instead.")
         if key in {"weight", "height", "bmi"} and not isinstance(value, (int, float)):
             raise ValueError(f"{key} must be a number (int or float). Got {type(value)} instead.")
+        if key == "image" and value not in {0, 1}:
+            raise ValueError(f"Image availability must be 0 (not available) or 1 (available). Got {value} instead.")
+        if key in {"segmentation", "mesh", "nurbs"}:
+            raise KeyError(f"{key} should be set using the set_{key}_value method for each label, not directly.")
         super().__setitem__(key, value)
 
     def sorted(self) -> dict:
@@ -99,17 +109,23 @@ class SubjectInfo(dict):
     @check_valid_label_value
     def set_segmentation_value(self, label: BoneLabelMap, value: int):
         if "segmentation" not in self:
-            self["segmentation"] = {}
-        self["segmentation"][label.name] = value
+            super().__setitem__("segmentation", {})
+        segmentation_dict = self["segmentation"]
+        segmentation_dict[label.name] = value
+        super().__setitem__("segmentation", segmentation_dict)
 
     @check_valid_label_value
     def set_mesh_value(self, label: BoneLabelMap, value: int):
         if "mesh" not in self:
-            self["mesh"] = {}
-        self["mesh"][label.name] = value
+            super().__setitem__("mesh", {})
+        mesh_dict = self["mesh"]
+        mesh_dict[label.name] = value
+        super().__setitem__("mesh", mesh_dict)
 
     @check_valid_label_value
     def set_nurbs_value(self, label: BoneLabelMap, value: int):
         if "nurbs" not in self:
-            self["nurbs"] = {}
-        self["nurbs"][label.name] = value
+            super().__setitem__("nurbs", {})
+        nurbs_dict = self["nurbs"]
+        nurbs_dict[label.name] = value
+        super().__setitem__("nurbs", nurbs_dict)
