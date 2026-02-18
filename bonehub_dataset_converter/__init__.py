@@ -1,5 +1,5 @@
 """
-BoneHub Dataset Convertor - Tools for converting various medical imaging datasets to BoneHub's standard format
+BoneHub Dataset Converter - Tools for converting various medical imaging datasets to BoneHub's standard format
 """
 
 from .base_io import BaseDatasetIO, DataSource
