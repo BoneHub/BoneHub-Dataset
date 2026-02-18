@@ -26,6 +26,6 @@ dependencies = [
 [tool.setuptools]
 packages = [
     "bonehub_data_schema",
-    "bonehub_dataset_convertor",
+    "bonehub_dataset_converter",
     "bonehub_segmentation",
 ]

@@ -63,7 +63,7 @@ We have prepared conversion scripts for various datasets.
 Here is an example of converting TCIA Spine-Mets-CT-SEG dataset ([link](https://www.cancerimagingarchive.net/collection/spine-mets-ct-seg/)) into BoneHub's data-structure:
 
 ```python
-from bonehub_dataset_convertor.custom_dataset_io import SpineMetsCTSeg
+from bonehub_dataset_converter.custom_dataset_io import SpineMetsCTSeg
 
 data_root = Path("path/to/dataset/root/folder")
 output_root = Path("path/to/output/root/folder")
