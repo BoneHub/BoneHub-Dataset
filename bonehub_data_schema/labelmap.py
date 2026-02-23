@@ -334,6 +334,10 @@ class BoneLabelMap(Enum):
     PHALANGE_FOOT_5_3_LEFT = 7829
     PHALANGE_FOOT_5_3_RIGHT = 7830
 
+    @classmethod
+    def get_names_list(cls):
+        return [label.name for label in cls]
+
 
 bonehub_to_snomed = {  # use https://github.com/ENHANCE-PET/MOOSE/blob/main/moosez/mappings/SNOMED.py
     BoneLabelMap.SKULL.value: {

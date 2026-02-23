@@ -9,6 +9,8 @@ from .. import BaseDatasetIO, DataSource
 from ..utils import get_dicom_subject_metadata, export_image
 from bonehub_data_schema import SubjectInfo, DatasetInfo
 
+from . import MAX_SUBJECTS_FOR_TESTING
+
 
 class ACRIN6664(BaseDatasetIO):
     """Data reader for TCIA CT Colonography with ARCIN 6664 dataset.
@@ -48,7 +50,7 @@ class ACRIN6664(BaseDatasetIO):
 
 
 def read_dataset(dataset_root: Path) -> list[DataSource]:
-    case_ids = sorted([d.name for d in (dataset_root / "CT COLONOGRAPHY").iterdir() if d.is_dir()])
+    case_ids = sorted([d.name for d in (dataset_root / "CT COLONOGRAPHY").iterdir() if d.is_dir()])[:MAX_SUBJECTS_FOR_TESTING]
     datalist = []
 
     for case_id in case_ids:

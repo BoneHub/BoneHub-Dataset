@@ -11,6 +11,8 @@ from .. import BaseDatasetIO, DataSource
 
 from bonehub_data_schema import SubjectInfo, DatasetInfo
 
+from . import MAX_SUBJECTS_FOR_TESTING
+
 
 class KiTS2023(BaseDatasetIO):
     """Data reader for KiTS 2023 challenge dataset.
@@ -42,7 +44,9 @@ def read_dataset(dataset_root: Path) -> list[DataSource]:
         metadata = json.load(f)
     metadata = {case["case_id"]: case for case in metadata}
 
-    case_ids = sorted([d.name for d in dataset_root.iterdir() if d.is_dir() and d.name.startswith("case_")])
+    case_ids = sorted([d.name for d in dataset_root.iterdir() if d.is_dir() and d.name.startswith("case_")])[
+        :MAX_SUBJECTS_FOR_TESTING
+    ]
     datalist = []
 
     for case_id in case_ids:

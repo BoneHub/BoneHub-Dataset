@@ -11,6 +11,8 @@ import pandas as pd
 from .. import BaseDatasetIO, DataSource
 from ..utils import export_nii_nrrd_segmentation
 
+from . import MAX_SUBJECTS_FOR_TESTING
+
 
 class BoneDat(BaseDatasetIO):
     """Data reader for BoneDat dataset.
@@ -21,7 +23,7 @@ class BoneDat(BaseDatasetIO):
         │   ├── subjectid/
         │   │   ├── original.nii.gz
         │   │   ├── calibration_constants.csv
-        │   │   └── metadata.csv
+        │   │   └── metadata.xlsx
         derived/
         │   ├── geometry/
         │   ├── registration/
@@ -52,7 +54,7 @@ class BoneDat(BaseDatasetIO):
 
 
 def read_dataset(dataset_root: Path) -> list[DataSource]:
-    subject_dirs = sorted([d for d in (dataset_root / "raw").iterdir() if d.is_dir()])
+    subject_dirs = sorted([d for d in (dataset_root / "raw").iterdir() if d.is_dir()])[:MAX_SUBJECTS_FOR_TESTING]
     datalist = []
 
     for subject_dir in subject_dirs:
@@ -65,8 +67,7 @@ def read_dataset(dataset_root: Path) -> list[DataSource]:
         if not segmentation_path.exists():
             raise ValueError(f"Missing segmentation file for {subject_dir.name}")
 
-        with open(subject_dir / "metadata.xlsx", "r") as f:
-            metadata = pd.read_excel(subject_dir / "metadata.xlsx")
+        metadata = pd.read_excel(subject_dir / "metadata.xlsx")
 
         data = DataSource(
             img_path=image_path,

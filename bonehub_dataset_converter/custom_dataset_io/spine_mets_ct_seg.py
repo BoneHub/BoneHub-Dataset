@@ -11,6 +11,8 @@ from bonehub_data_schema import BoneLabelMap as BLM
 from .. import BaseDatasetIO, DataSource
 from ..utils import get_dicom_subject_metadata, export_image, export_dicom_segmentation
 
+from . import MAX_SUBJECTS_FOR_TESTING
+
 
 class SpineMetsCTSeg(BaseDatasetIO):
     """Data reader for TCIA Spine-Mets-CT-SEG dataset.
@@ -70,7 +72,7 @@ class SpineMetsCTSeg(BaseDatasetIO):
 
 
 def read_dataset(dataset_root: Path) -> list[DataSource]:
-    case_ids = sorted([d.name for d in (dataset_root / "Spine-Mets-CT-SEG").iterdir() if d.is_dir()])
+    case_ids = sorted([d.name for d in (dataset_root / "Spine-Mets-CT-SEG").iterdir() if d.is_dir()])[:MAX_SUBJECTS_FOR_TESTING]
     datalist = []
 
     for case_id in case_ids:

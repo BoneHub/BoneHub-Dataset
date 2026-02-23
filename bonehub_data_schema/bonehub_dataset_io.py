@@ -1,252 +1,135 @@
-"""Module for reading datasets in BoneHub data structure format"""
+"""
+Module for reading datasets in BoneHub data structure format
+BoneHub data structure format is as follows:
 
-from typing import Optional
+BoneHub Dataset/
+├── Dataset_001/
+│   ├── Dataset_info_001.json
+│   ├── Subject_info_001.json
+│   ├── Image/
+│   │   ├── 001_000001.nii.gz
+│   │   ├── 001_000002.nii.gz
+│   │   └── ...
+│   ├── Segmentation/
+│   │   ├── 001_000001.nii.gz
+│   │   ├── 001_000002.nii.gz
+│   │   └── ...
+│   ├── Mesh/
+│   │   ├── 001_000001/
+│   │   │   ├── 001_000001_femur_left.stl
+│   │   │   ├── 001_000001_femur_right.stl
+│   │   │   └── ...
+│   │   ├── 001_000002/
+│   │   │   ├── 001_000002_femur_left.stl
+│   │   │   ├── 001_000002_femur_right.stl
+│   │   │   └── ...
+│   │   └── ...
+│   ├── NURBS/
+│   │   ├── 001_000001/
+│   │   │   ├── 001_000001_femur_left.iges
+│   │   │   ├── 001_000001_femur_right.iges
+│   │   │   └── ...
+│   │   ├── 001_000002/
+│   │   │   ├── 001_000002_femur_left.iges
+│   │   │   ├── 001_000002_femur_right.iges
+│   │   │   └── ...
+│   │   └── ...
+│   └── Landmark/
+│       ├── 001_000001.csv
+│       ├── 001_000002.csv
+│       └── ...
+├── Dataset_002/
+│   └── ...
+└── ...
+
+
+"""
+
 from pathlib import Path
-from monai.data import DataLoader, Dataset
-from monai.data import DataLoader
-from monai.transforms import Compose
-import torch
-from monai.transforms import (
-    Compose,
-    EnsureChannelFirstd,
-    EnsureTyped,
-    LoadImaged,
-    Orientationd,
-    RandFlipd,
-    RandRotate90d,
-    RandAffined,
-    RandGaussianNoised,
-    RandGaussianSmoothd,
-    RandScaleIntensityd,
-    RandShiftIntensityd,
-    RandAdjustContrastd,
-    ScaleIntensityRanged,
-    Spacingd,
-    Resized,
-    ToTensord,
-    CropForegroundd,
-    SelectItemsd,
-)
+import json
+
+from . import DatasetInfo, SubjectInfo
 
 
 class BoneHubDatasetIO:
     """Base class for loading datasets that have been constructed in BoneHub data structure format."""
 
-    def __init__(
-        self,
-        dataset_root: Path,
-        mode: str = "train",
-        target_spacing: Optional[tuple[float]] = None,
-        target_size: Optional[tuple[int]] = None,
-        target_orientation: Optional[str] = "PLS",
-    ):
-        """Initialize BoneHub dataset reader.
+    def __init__(self, datasets_root: Path, dataset_id: int):
+        self.datasets_root = datasets_root
+        self.dataset_id = dataset_id
+        self.dataset_path = datasets_root / f"Dataset_{str(dataset_id).zfill(3)}"
+        self.dataset_info: DatasetInfo = self._load_dataset_info()
+        self.subject_info: list[SubjectInfo] = self._load_subject_info()
 
-        Args:
-            dataset_root: Root directory containing case folders in BoneHub format
-            mode: "train" or "evaluation" or "inference" mode
-            target_spacing: Desired voxel spacing (default: None, use original)
-            target_size: Desired output spatial size (default: None, use original)
-        """
-        self.dataset_root = dataset_root
-        self.run_data_reader()
-        if mode not in {"train", "evaluation", "inference"}:
-            raise ValueError("mode must be 'train', 'evaluation', or 'inference'")
-        self.mode = mode
-        if target_spacing is not None:
-            if len(target_spacing) != 3:
-                raise ValueError("target_spacing must be a tuple of 3 floats")
-        self.target_spacing = target_spacing
-        if target_size is not None:
-            if len(target_size) != 3:
-                raise ValueError("target_size must be a tuple of 3 ints")
-        self.target_size = target_size
-        self.target_orientation = target_orientation
+    def _load_dataset_info(self) -> DatasetInfo:
+        dataset_info_path = self.dataset_path / f"Dataset_info_{str(self.dataset_id).zfill(3)}.json"
+        with open(dataset_info_path, "r") as f:
+            dataset_info_dict = json.load(f)
+        return DatasetInfo(**dataset_info_dict)
 
-    def run_data_reader(self):
-        """Run data reader to populate self.data."""
-        raise NotImplementedError("Subclasses must implement run_data_reader method.")
+    def _load_subject_info(self) -> list[SubjectInfo]:
+        subject_info_list = []
+        subject_info_path = self.dataset_path / f"Subject_info_{str(self.dataset_id).zfill(3)}.json"
+        with open(subject_info_path, "r") as f:
+            subject_info_dict = json.load(f)
+        for subject in subject_info_dict:
+            subject_info = SubjectInfo(**subject)
+            if "segmentation" in subject:
+                for label, value in subject["segmentation"].items():
+                    subject_info.set_segmentation_value(label, value)
+            if "mesh" in subject:
+                for label, value in subject["mesh"].items():
+                    subject_info.set_mesh_value(label, value)
+            if "nurbs" in subject:
+                for label, value in subject["nurbs"].items():
+                    subject_info.set_nurbs_value(label, value)
+            subject_info_list.append(subject_info)
+        return subject_info_list
 
-    def get_transforms_train(self) -> Compose:
-        """Get training transforms with data augmentation.
+    def check_dataset_integrity(self) -> bool:
+        """Check if all files referenced in the subject_info exist in the dataset directory."""
+        for subject in self.subject_info:
+            if subject["image"]:
+                image_path = (
+                    self.dataset_path
+                    / "Image"
+                    / f"{str(subject['dataset_id']).zfill(3)}_{str(subject['subject_id']).zfill(6)}.nii.gz"
+                )
+                if not image_path.exists():
+                    print(f"Image file {image_path} does not exist.")
+                    return False
+            if "segmentation" in subject:
+                segmentation_path = (
+                    self.dataset_path
+                    / "Segmentation"
+                    / f"{str(subject['dataset_id']).zfill(3)}_{str(subject['subject_id']).zfill(6)}.nii.gz"
+                )
+                if not segmentation_path.exists():
+                    print(f"Segmentation file {segmentation_path} does not exist.")
+                    return False
+            if "mesh" in subject:
+                for label in subject["mesh"]:
+                    mesh_path = (
+                        self.dataset_path
+                        / "Mesh"
+                        / f"{str(subject['dataset_id']).zfill(3)}_{str(subject['subject_id']).zfill(6)}"
+                        / f"{str(subject['dataset_id']).zfill(3)}_{str(subject['subject_id']).zfill(6)}_{label}.stl"
+                    )
+                    if not mesh_path.exists():
+                        print(f"Mesh file {mesh_path} does not exist.")
+                        return False
+            if "nurbs" in subject:
+                for label in subject["nurbs"]:
+                    nurbs_path = (
+                        self.dataset_path
+                        / "NURBS"
+                        / f"{str(subject['dataset_id']).zfill(3)}_{str(subject['subject_id']).zfill(6)}"
+                        / f"{str(subject['dataset_id']).zfill(3)}_{str(subject['subject_id']).zfill(6)}_{label}.iges"
+                    )
+                    if not nurbs_path.exists():
+                        print(f"NURBS file {nurbs_path} does not exist.")
+                        return False
+        return True
 
-        Returns:
-            Composed transforms for training
-        """
-        keys = ["image", "label"]
-
-        transforms_list = [
-            SelectItemsd(keys=keys),
-            LoadImaged(keys=keys),
-            EnsureChannelFirstd(keys=keys),
-            Orientationd(keys=keys, axcodes=self.target_orientation, labels=None),
-        ]
-
-        if self.target_spacing is not None:
-            transforms_list.append(Spacingd(keys=keys, pixdim=self.target_spacing, mode=("bilinear", "nearest")))
-
-        transforms_list.extend(
-            [
-                ScaleIntensityRanged(keys=["image"], a_min=-200, a_max=200, b_min=0.0, b_max=1.0, clip=True),
-                CropForegroundd(keys=keys, source_key="image", margin=10),
-            ]
-        )
-
-        if self.target_size is not None:
-            transforms_list.append(Resized(keys=keys, spatial_size=self.target_size, mode=("trilinear", "nearest")))
-
-        transforms_list.extend(
-            [
-                RandFlipd(keys=keys, prob=0.5, spatial_axis=0),
-                RandFlipd(keys=keys, prob=0.5, spatial_axis=1),
-                RandFlipd(keys=keys, prob=0.5, spatial_axis=2),
-                RandRotate90d(keys=keys, prob=0.5, spatial_axes=(0, 1)),
-                RandRotate90d(keys=keys, prob=0.5, spatial_axes=(1, 2)),
-                RandAffined(
-                    keys=keys,
-                    prob=0.3,
-                    rotate_range=(0.26, 0.26, 0.26),  # ~15 degrees
-                    scale_range=(0.1, 0.1, 0.1),
-                    mode=("bilinear", "nearest"),
-                    padding_mode="border",
-                ),
-                RandGaussianNoised(keys=["image"], prob=0.15, mean=0.0, std=0.1),
-                RandGaussianSmoothd(keys=["image"], prob=0.15, sigma_x=(0.5, 1.0), sigma_y=(0.5, 1.0), sigma_z=(0.5, 1.0)),
-                RandScaleIntensityd(keys=["image"], factors=0.1, prob=0.5),
-                RandShiftIntensityd(keys=["image"], offsets=0.1, prob=0.5),
-                RandAdjustContrastd(keys=["image"], prob=0.3, gamma=(0.7, 1.5)),
-            ]
-        )
-
-        transforms_list.extend(
-            [
-                EnsureTyped(keys=keys, dtype=torch.float32),
-                ToTensord(keys=keys),
-            ]
-        )
-
-        return Compose(transforms_list)
-
-    def get_transforms_evaluation(self) -> Compose:
-        """Get evaluation transforms without data augmentation.
-
-        Returns:
-            Composed transforms for evaluation
-        """
-        keys = ["image", "label"]
-
-        transforms_list = [
-            SelectItemsd(keys=keys),
-            LoadImaged(keys=keys),
-            EnsureChannelFirstd(keys=keys),
-            Orientationd(keys=keys, axcodes=self.target_orientation, labels=None),
-        ]
-
-        if self.target_spacing is not None:
-            transforms_list.append(Spacingd(keys=keys, pixdim=self.target_spacing, mode=("bilinear", "nearest")))
-
-        transforms_list.extend(
-            [
-                ScaleIntensityRanged(keys=["image"], a_min=-200, a_max=200, b_min=0.0, b_max=1.0, clip=True),
-                CropForegroundd(keys=keys, source_key="image", margin=10),
-            ]
-        )
-
-        if self.target_size is not None:
-            transforms_list.append(Resized(keys=keys, spatial_size=self.target_size, mode="trilinear"))
-
-        transforms_list.extend(
-            [
-                EnsureTyped(keys=keys, dtype=torch.float32),
-                ToTensord(keys=keys),
-            ]
-        )
-
-        return Compose(transforms_list)
-
-    def get_transforms_inference(self) -> Compose:
-        """Get inference transforms for prediction only.
-
-        Returns:
-            Composed transforms for inference
-        """
-        keys = ["image"]
-
-        transforms_list = [
-            SelectItemsd(keys=keys),
-            LoadImaged(keys=keys),
-            EnsureChannelFirstd(keys=keys),
-            Orientationd(keys=keys, axcodes=self.target_orientation, labels=None),
-        ]
-
-        if self.target_spacing is not None:
-            transforms_list.append(Spacingd(keys=keys, pixdim=self.target_spacing, mode="bilinear"))
-
-        transforms_list.extend(
-            [
-                ScaleIntensityRanged(keys=["image"], a_min=-200, a_max=200, b_min=0.0, b_max=1.0, clip=True),
-                CropForegroundd(keys=keys, source_key="image", margin=10),
-            ]
-        )
-
-        if self.target_size is not None:
-            transforms_list.append(Resized(keys=keys, spatial_size=self.target_size, mode="trilinear"))
-
-        transforms_list.extend(
-            [
-                EnsureTyped(keys=keys, dtype=torch.float32),
-                ToTensord(keys=keys),
-            ]
-        )
-
-        return Compose(transforms_list)
-
-    def get_dataloader(
-        self,
-        batch_size: int,
-        shuffle: bool = False,
-        cache_data: bool = False,
-        num_workers: int = 0,
-    ) -> DataLoader:
-        """Create DataLoader.
-
-        Args:
-            batch_size: Batch size
-            shuffle: Whether to shuffle data
-            cache_data: Whether to cache loaded data in memory
-            num_workers: Number of workers for data loading
-
-        Returns:
-            MONAI DataLoader
-        """
-        if self.mode == "train":
-            transforms = self.get_transforms_train()
-        elif self.mode == "evaluation":
-            transforms = self.get_transforms_evaluation()
-        elif self.mode == "inference":
-            transforms = self.get_transforms_inference()
-        else:
-            raise ValueError("mode must be 'train', 'evaluation', or 'inference'")
-
-        if cache_data:
-            from monai.data import CacheDataset
-
-            dataset = CacheDataset(
-                data=self.data,
-                transform=transforms,
-                cache_rate=1.0,
-                num_workers=num_workers,
-            )
-        else:
-            dataset = Dataset(data=self.data, transform=transforms)
-
-        return DataLoader(
-            dataset=dataset,
-            batch_size=batch_size,
-            shuffle=shuffle,
-            num_workers=num_workers,
-        )
-
-    def __len__(self) -> int:
-        """Return number of cases."""
-        return len(self.data)
+    def __len__(self):
+        return len(self.subject_info)
