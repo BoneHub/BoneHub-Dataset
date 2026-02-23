@@ -86,13 +86,16 @@ class BaseDatasetIO:
 
         self.custom_data_handlers[func_name] = func
 
-    def export_to_bonehub_format(self, output_root: Path, output_dataset_id: int, overwrite: bool = False):
+    def export_to_bonehub_format(
+        self, output_root: Path, output_dataset_id: int, overwrite: bool = False, verbose: bool = True
+    ):
         """
         Export the dataset to BoneHub's standard format.
         Args:
             output_root (Path): The root directory where the converted dataset will be saved.
             output_dataset_id (int): The dataset ID to assign to the exported dataset.
             overwrite (bool): Whether to overwrite existing files in the output directory. Default is False.
+            verbose (bool): Whether to print progress messages. Default is True.
         """
         self.dataset_info["dataset_id"] = output_dataset_id
 
@@ -106,14 +109,17 @@ class BaseDatasetIO:
                     f"Dataset directory '{dataset_path}' already exists. Please choose a different output_dataset_id or remove the existing directory."
                 )
 
-        print(f"Reading dataset from '{self.dataset_root}'...")
+        if verbose:
+            print(f"Reading dataset from '{self.dataset_root}'...")
         datalist: list[DataSource] = self.custom_data_handlers["read_dataset"](self.dataset_root)
-        print(f"Finished reading dataset. Found {len(datalist)} subjects.")
-        print(f"Exporting dataset to '{dataset_path}'...")
+        if verbose:
+            print(f"Finished reading dataset. Found {len(datalist)} subjects.")
+            print(f"Exporting dataset to '{dataset_path}'...")
         os.makedirs(dataset_path, exist_ok=True)
         with open(dataset_info_path, "w") as f:
             json.dump(self.dataset_info.sorted(), f, indent=4)
-        print(f"Dataset info saved to {dataset_info_path}")
+        if verbose:
+            print(f"Dataset info saved to {dataset_info_path}")
         subject_info = []
 
         for subject_id, data in enumerate(datalist, start=1):
@@ -129,7 +135,8 @@ class BaseDatasetIO:
                     / f"{self.dataset_info['dataset_id']:03d}_{data.subject_info['subject_id']:06d}.nii.gz"
                 )
                 self.custom_data_handlers["export_image"](data, export_file_path)
-                print(f"Exported image '{data.img_path}' to '{export_file_path}'")
+                if verbose:
+                    print(f"Exported image '{data.img_path}' to '{export_file_path}'")
             if data.segmentation_path:
                 os.makedirs(dataset_path / "Segmentation", exist_ok=True)
                 export_file_path = (
@@ -143,30 +150,32 @@ class BaseDatasetIO:
                     for label_id in available_labels:
                         if label_id == 0:
                             continue  # skip background label
-                        sinfo.set_segmentation_value(BoneLabelMap(label_id), 1)
-                print(f"Exported segmentation '{data.segmentation_path}' to '{export_file_path}'")
+                        sinfo.set_segmentation_value(BoneLabelMap(label_id).name, 1)
+                if verbose:
+                    print(f"Exported segmentation '{data.segmentation_path}' to '{export_file_path}'")
             if data.mesh_path:
                 os.makedirs(dataset_path / "Mesh", exist_ok=True)
                 export_folder_path = (
                     dataset_path / "Mesh" / f"{self.dataset_info['dataset_id']:03d}_{data.subject_info['subject_id']:06d}"
                 )
                 self.custom_data_handlers["export_mesh"](data, export_folder_path)
-                print(f"Exported mesh '{data.mesh_path}' to '{export_folder_path}'")
+                if verbose:
+                    print(f"Exported mesh '{data.mesh_path}' to '{export_folder_path}'")
             if data.nurbs_path:
                 os.makedirs(dataset_path / "NURBS", exist_ok=True)
                 export_folder_path = (
                     dataset_path / "NURBS" / f"{self.dataset_info['dataset_id']:03d}_{data.subject_info['subject_id']:06d}"
                 )
                 self.custom_data_handlers["export_nurbs"](data, export_folder_path)
-                print(f"Exported NURBS '{data.nurbs_path}' to '{export_folder_path}'")
+                if verbose:
+                    print(f"Exported NURBS '{data.nurbs_path}' to '{export_folder_path}'")
 
             subject_info.append(sinfo.sorted())
 
             with open(subject_info_path, "w") as f:
                 json.dump(subject_info, f, indent=4)
-            print(f"Updated {subject_info_path.name} for subject {subject_id}")
+            if verbose:
+                print(f"Updated {subject_info_path.name} for subject {subject_id}")
 
-            if subject_id > 2:
-                break
-
-        print(f"Finished exporting dataset to '{dataset_path}'. Total subjects exported: {len(subject_info)}.")
+        if verbose:
+            print(f"Finished exporting dataset to '{dataset_path}'. Total subjects exported: {len(subject_info)}.")
