@@ -97,11 +97,11 @@ class BaseDatasetIO:
             overwrite (bool): Whether to overwrite existing files in the output directory. Default is False.
             verbose (bool): Whether to print progress messages. Default is True.
         """
-        self.dataset_info["dataset_id"] = output_dataset_id
+        self.dataset_info.dataset_id = output_dataset_id
 
-        dataset_path = output_root / f"Dataset_{self.dataset_info['dataset_id']:03d}"
-        dataset_info_path = dataset_path / f"Dataset_info_{self.dataset_info['dataset_id']:03d}.json"
-        subject_info_path = dataset_path / f"Subject_info_{self.dataset_info['dataset_id']:03d}.json"
+        dataset_path = output_root / f"Dataset_{self.dataset_info.dataset_id:03d}"
+        dataset_info_path = dataset_path / f"Dataset_info_{self.dataset_info.dataset_id:03d}.json"
+        subject_info_path = dataset_path / f"Subject_info_{self.dataset_info.dataset_id:03d}.json"
 
         if not overwrite:
             if dataset_path.exists():
@@ -117,22 +117,20 @@ class BaseDatasetIO:
             print(f"Exporting dataset to '{dataset_path}'...")
         os.makedirs(dataset_path, exist_ok=True)
         with open(dataset_info_path, "w") as f:
-            json.dump(self.dataset_info.sorted(), f, indent=4)
+            json.dump(self.dataset_info.sorted_dict(), f, indent=4)
         if verbose:
             print(f"Dataset info saved to {dataset_info_path}")
         subject_info = []
 
         for subject_id, data in enumerate(datalist, start=1):
             sinfo = data.subject_info
-            sinfo["dataset_id"] = self.dataset_info["dataset_id"]
-            sinfo["subject_id"] = subject_id
+            sinfo.dataset_id = self.dataset_info.dataset_id
+            sinfo.subject_id = subject_id
 
             if data.img_path:
                 os.makedirs(dataset_path / "Image", exist_ok=True)
                 export_file_path = (
-                    dataset_path
-                    / "Image"
-                    / f"{self.dataset_info['dataset_id']:03d}_{data.subject_info['subject_id']:06d}.nii.gz"
+                    dataset_path / "Image" / f"{self.dataset_info.dataset_id:03d}_{data.subject_info.subject_id:06d}.nii.gz"
                 )
                 self.custom_data_handlers["export_image"](data, export_file_path)
                 if verbose:
@@ -142,7 +140,7 @@ class BaseDatasetIO:
                 export_file_path = (
                     dataset_path
                     / "Segmentation"
-                    / f"{self.dataset_info['dataset_id']:03d}_{data.subject_info['subject_id']:06d}.nii.gz"
+                    / f"{self.dataset_info.dataset_id:03d}_{data.subject_info.subject_id:06d}.nii.gz"
                 )
                 self.custom_data_handlers["export_segmentation"](data, export_file_path)
                 available_labels = sorted(list(set(nib.load(export_file_path).get_fdata().flatten())))
@@ -156,7 +154,7 @@ class BaseDatasetIO:
             if data.mesh_path:
                 os.makedirs(dataset_path / "Mesh", exist_ok=True)
                 export_folder_path = (
-                    dataset_path / "Mesh" / f"{self.dataset_info['dataset_id']:03d}_{data.subject_info['subject_id']:06d}"
+                    dataset_path / "Mesh" / f"{self.dataset_info.dataset_id:03d}_{data.subject_info.subject_id:06d}"
                 )
                 self.custom_data_handlers["export_mesh"](data, export_folder_path)
                 if verbose:
@@ -164,13 +162,13 @@ class BaseDatasetIO:
             if data.nurbs_path:
                 os.makedirs(dataset_path / "NURBS", exist_ok=True)
                 export_folder_path = (
-                    dataset_path / "NURBS" / f"{self.dataset_info['dataset_id']:03d}_{data.subject_info['subject_id']:06d}"
+                    dataset_path / "NURBS" / f"{self.dataset_info.dataset_id:03d}_{data.subject_info.subject_id:06d}"
                 )
                 self.custom_data_handlers["export_nurbs"](data, export_folder_path)
                 if verbose:
                     print(f"Exported NURBS '{data.nurbs_path}' to '{export_folder_path}'")
 
-            subject_info.append(sinfo.sorted())
+            subject_info.append(sinfo.sorted_dict())
 
             with open(subject_info_path, "w") as f:
                 json.dump(subject_info, f, indent=4)

@@ -33,6 +33,8 @@ class KiTS2023(BaseDatasetIO):
         dataset_info = DatasetInfo(
             name="KiTS 2023",
             description="Kidney Tumor Segmentation Challenge 2023 dataset",
+            url="https://github.com/neheller/kits23",
+            modality="CT",
         )
         super().__init__(dataset_root, dataset_info)
         self.register_data_handler("read_dataset", read_dataset)
@@ -65,7 +67,7 @@ def read_dataset(dataset_root: Path) -> list[DataSource]:
                 gender=metadata[case_id]["gender"],
                 bmi=metadata[case_id]["bmi"],
                 imaging_modality="CT",
-                image=1,
+                image=True,
             ),
         )
 

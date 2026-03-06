@@ -69,7 +69,7 @@ def read_dataset(dataset_root: Path) -> list[DataSource]:
                     age=subject_metadata["age"],
                     gender=subject_metadata["gender"],
                     imaging_modality=subject_metadata["modality"],
-                    image=1,
+                    image=True,
                 ),
             )
 

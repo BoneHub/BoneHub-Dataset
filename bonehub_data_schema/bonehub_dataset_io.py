@@ -89,11 +89,11 @@ class BoneHubDatasetIO:
     def check_dataset_integrity(self) -> bool:
         """Check if all files referenced in the subject_info exist in the dataset directory."""
         for subject in self.subject_info:
-            if subject["image"]:
+            if subject.image:
                 image_path = (
                     self.dataset_path
                     / "Image"
-                    / f"{str(subject['dataset_id']).zfill(3)}_{str(subject['subject_id']).zfill(6)}.nii.gz"
+                    / f"{str(subject.dataset_id).zfill(3)}_{str(subject.subject_id).zfill(6)}.nii.gz"
                 )
                 if not image_path.exists():
                     print(f"Image file {image_path} does not exist.")
@@ -102,7 +102,7 @@ class BoneHubDatasetIO:
                 segmentation_path = (
                     self.dataset_path
                     / "Segmentation"
-                    / f"{str(subject['dataset_id']).zfill(3)}_{str(subject['subject_id']).zfill(6)}.nii.gz"
+                    / f"{str(subject.dataset_id).zfill(3)}_{str(subject.subject_id).zfill(6)}.nii.gz"
                 )
                 if not segmentation_path.exists():
                     print(f"Segmentation file {segmentation_path} does not exist.")
@@ -112,8 +112,8 @@ class BoneHubDatasetIO:
                     mesh_path = (
                         self.dataset_path
                         / "Mesh"
-                        / f"{str(subject['dataset_id']).zfill(3)}_{str(subject['subject_id']).zfill(6)}"
-                        / f"{str(subject['dataset_id']).zfill(3)}_{str(subject['subject_id']).zfill(6)}_{label}.stl"
+                        / f"{str(subject.dataset_id).zfill(3)}_{str(subject.subject_id).zfill(6)}"
+                        / f"{str(subject.dataset_id).zfill(3)}_{str(subject.subject_id).zfill(6)}_{label}.stl"
                     )
                     if not mesh_path.exists():
                         print(f"Mesh file {mesh_path} does not exist.")
@@ -123,8 +123,8 @@ class BoneHubDatasetIO:
                     nurbs_path = (
                         self.dataset_path
                         / "NURBS"
-                        / f"{str(subject['dataset_id']).zfill(3)}_{str(subject['subject_id']).zfill(6)}"
-                        / f"{str(subject['dataset_id']).zfill(3)}_{str(subject['subject_id']).zfill(6)}_{label}.iges"
+                        / f"{str(subject.dataset_id).zfill(3)}_{str(subject.subject_id).zfill(6)}"
+                        / f"{str(subject.dataset_id).zfill(3)}_{str(subject.subject_id).zfill(6)}_{label}.iges"
                     )
                     if not nurbs_path.exists():
                         print(f"NURBS file {nurbs_path} does not exist.")

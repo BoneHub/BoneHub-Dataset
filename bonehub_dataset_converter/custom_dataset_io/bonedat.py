@@ -46,6 +46,8 @@ class BoneDat(BaseDatasetIO):
         dataset_info = DatasetInfo(
             name="BoneDat",
             description="BoneDat dataset",
+            url="https://doi.org/10.5281/zenodo.15189760",
+            modality="CT",
         )
         super().__init__(dataset_root, dataset_info)
         self.register_data_handler("read_dataset", read_dataset)
@@ -77,7 +79,7 @@ def read_dataset(dataset_root: Path) -> list[DataSource]:
                 age=int(metadata["CT date"].iloc[0]) - int(metadata["born"].iloc[0]),
                 gender=metadata["sex"].iloc[0],
                 imaging_modality="CT",
-                image=1,
+                image=True,
             ),
         )
 

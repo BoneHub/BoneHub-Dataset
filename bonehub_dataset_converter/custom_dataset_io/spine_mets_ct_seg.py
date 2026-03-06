@@ -64,6 +64,7 @@ class SpineMetsCTSeg(BaseDatasetIO):
             name="Spine-Mets-CT-SEG",
             description="TCIA Spine-Mets-CT-SEG dataset",
             url="https://www.cancerimagingarchive.net/collection/spine-mets-ct-seg/",
+            modality="CT",
         )
         super().__init__(dataset_root, dataset_info)
         self.register_data_handler("read_dataset", read_dataset)
@@ -95,7 +96,7 @@ def read_dataset(dataset_root: Path) -> list[DataSource]:
                 age=subject_metadata["age"],
                 gender=subject_metadata["gender"],
                 imaging_modality=subject_metadata["modality"],
-                image=1,
+                image=True,
             ),
         )
 

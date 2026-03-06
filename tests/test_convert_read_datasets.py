@@ -11,7 +11,7 @@ import bonehub_dataset_converter.custom_dataset_io as custom_dataset_io
 
 
 _BONEHUB_DATASET_ROOT = Path("./tests/dummy_bonehub_dataset")
-_VERBOSE = False
+_VERBOSE = True
 
 
 # @unittest.skip("")
@@ -27,8 +27,8 @@ class TestBoneDat(unittest.TestCase):
     def test_read(self):
         dataset = BoneHubDatasetIO(_BONEHUB_DATASET_ROOT, dataset_id=1)
 
-        self.assertEqual(dataset.dataset_info["dataset_id"], 1)
-        self.assertEqual(dataset.subject_info[0]["subject_id"], 1)
+        self.assertEqual(dataset.dataset_info.dataset_id, 1)
+        self.assertEqual(dataset.subject_info[0].subject_id, 1)
         self.assertEqual(len(dataset), 2)
         self.assertTrue(dataset.check_dataset_integrity())
 
@@ -45,8 +45,8 @@ class TestKits2023(unittest.TestCase):
     def test_read(self):
         dataset = BoneHubDatasetIO(_BONEHUB_DATASET_ROOT, dataset_id=2)
 
-        self.assertEqual(dataset.dataset_info["dataset_id"], 2)
-        self.assertEqual(dataset.subject_info[0]["subject_id"], 1)
+        self.assertEqual(dataset.dataset_info.dataset_id, 2)
+        self.assertEqual(dataset.subject_info[0].subject_id, 1)
         self.assertEqual(len(dataset), 2)
         self.assertTrue(dataset.check_dataset_integrity())
 
@@ -63,8 +63,8 @@ class TestSpineMetsCTSeg(unittest.TestCase):
     def test_read(self):
         dataset = BoneHubDatasetIO(_BONEHUB_DATASET_ROOT, dataset_id=3)
 
-        self.assertEqual(dataset.dataset_info["dataset_id"], 3)
-        self.assertEqual(dataset.subject_info[0]["subject_id"], 1)
+        self.assertEqual(dataset.dataset_info.dataset_id, 3)
+        self.assertEqual(dataset.subject_info[0].subject_id, 1)
         self.assertEqual(len(dataset), 2)
         self.assertTrue(dataset.check_dataset_integrity())
 
@@ -81,8 +81,8 @@ class TestACRIN6664(unittest.TestCase):
     def test_read(self):
         dataset = BoneHubDatasetIO(_BONEHUB_DATASET_ROOT, dataset_id=4)
 
-        self.assertEqual(dataset.dataset_info["dataset_id"], 4)
-        self.assertEqual(dataset.subject_info[0]["subject_id"], 1)
+        self.assertEqual(dataset.dataset_info.dataset_id, 4)
+        self.assertEqual(dataset.subject_info[0].subject_id, 1)
         self.assertEqual(len(dataset), 4)
         # The ACRIN 6664 dataset contains 4 valid subjects after applying the file count filter, even with the MAX_SUBJECTS_FOR_TESTING limit set to 2.
         # This is because the limit is applied to the number of subjects processed, but each subject may contain multiple valid subdirectories that are included in the dataset.
