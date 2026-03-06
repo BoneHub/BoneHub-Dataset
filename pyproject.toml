@@ -21,6 +21,7 @@ dependencies = [
     "nibabel",  
     "pandas",
     "openpyxl",
+    "pydantic",
 ]
 
 [tool.setuptools]
