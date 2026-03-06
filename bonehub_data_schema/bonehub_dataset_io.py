@@ -74,15 +74,6 @@ class BoneHubDatasetIO:
             subject_info_dict = json.load(f)
         for subject in subject_info_dict:
             subject_info = SubjectInfo(**subject)
-            if "segmentation" in subject:
-                for label, value in subject["segmentation"].items():
-                    subject_info.set_segmentation_value(label, value)
-            if "mesh" in subject:
-                for label, value in subject["mesh"].items():
-                    subject_info.set_mesh_value(label, value)
-            if "nurbs" in subject:
-                for label, value in subject["nurbs"].items():
-                    subject_info.set_nurbs_value(label, value)
             subject_info_list.append(subject_info)
         return subject_info_list
 
@@ -98,7 +89,7 @@ class BoneHubDatasetIO:
                 if not image_path.exists():
                     print(f"Image file {image_path} does not exist.")
                     return False
-            if "segmentation" in subject:
+            if subject.segmentation:
                 segmentation_path = (
                     self.dataset_path
                     / "Segmentation"
@@ -107,8 +98,8 @@ class BoneHubDatasetIO:
                 if not segmentation_path.exists():
                     print(f"Segmentation file {segmentation_path} does not exist.")
                     return False
-            if "mesh" in subject:
-                for label in subject["mesh"]:
+            if subject.mesh:
+                for label in subject.mesh:
                     mesh_path = (
                         self.dataset_path
                         / "Mesh"
@@ -118,8 +109,8 @@ class BoneHubDatasetIO:
                     if not mesh_path.exists():
                         print(f"Mesh file {mesh_path} does not exist.")
                         return False
-            if "nurbs" in subject:
-                for label in subject["nurbs"]:
+            if subject.nurbs:
+                for label in subject.nurbs:
                     nurbs_path = (
                         self.dataset_path
                         / "NURBS"
