@@ -1,22 +1,31 @@
 from pathlib import Path
-from dataclasses import dataclass
+from pydantic import BaseModel, Field, ConfigDict
 import os
 import json
 import nibabel as nib
-from typing import Callable
+from typing import Callable, List
+import SimpleITK as sitk
 
 from bonehub_data_schema import DatasetInfo, SubjectInfo, BoneLabelMap
 
 
-@dataclass
-class DataSource:
+class DataSource(BaseModel):
     """Class to contain information for data conversion for a subject in a dataset."""
 
-    img_path: Path = None
-    segmentation_path: Path = None
-    mesh_path: Path = None
-    nurbs_path: Path = None
-    subject_info: SubjectInfo = None
+    img_path: Path | None = Field(
+        None, description="Path to file or folder containing the image data (e.g. NifTI file or DICOM folder)"
+    )
+    img_transform: sitk.Transform | None = Field(
+        None,
+        description="SimpleITK Transform object representing the spatial transformation to be applied to the image data during export.",
+    )
+    segmentation_path: List[Path] | None = Field(
+        None, description="a list of file paths pointing to segmentation data (e.g. NIfTI file or DICOM file)"
+    )
+    mesh_path: List[Path] | None = Field(None, description="a list of file paths pointing to mesh data (e.g. STL or OBJ files)")
+    nurbs_path: List[Path] | None = Field(None, description="a list of file paths pointing to NURBS data.")
+    subject_info: SubjectInfo | None = Field(None, description="Information about the subject")
+    model_config = ConfigDict(strict=True, extra="forbid", validate_assignment=True, arbitrary_types_allowed=True)
 
 
 class BaseDatasetIO:
@@ -160,13 +169,7 @@ class BaseDatasetIO:
                 if verbose:
                     print(f"Exported mesh '{data.mesh_path}' to '{export_folder_path}'")
             if data.nurbs_path:
-                os.makedirs(dataset_path / "NURBS", exist_ok=True)
-                export_folder_path = (
-                    dataset_path / "NURBS" / f"{self.dataset_info.dataset_id:03d}_{data.subject_info.subject_id:06d}"
-                )
-                self.custom_data_handlers["export_nurbs"](data, export_folder_path)
-                if verbose:
-                    print(f"Exported NURBS '{data.nurbs_path}' to '{export_folder_path}'")
+                NotImplementedError("NURBS export is not implemented yet.")
 
             subject_info.append(sinfo.sorted_dict())
 
