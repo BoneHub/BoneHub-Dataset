@@ -3,7 +3,7 @@
 import numpy as np
 import torch
 
-from ..base import SegmentationModelWrapper
+from ..base_wrapper import SegmentationModelWrapper
 
 
 class MOOSEWrapper(SegmentationModelWrapper):

@@ -55,6 +55,7 @@ def export_nii_nrrd_segmentation(input_label_path: Path, output_label_path: Path
             LoadImaged(
                 keys=["label"],
                 image_only=False,
+                reader="ITKReader",
             ),
             Lambdad(
                 keys=["label"],

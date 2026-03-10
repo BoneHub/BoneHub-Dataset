@@ -3,7 +3,7 @@ Package initialization for model wrappers.
 Provides convenient imports for all available model wrappers.
 """
 
-from .base import SegmentationModelWrapper
+from .base_wrapper import SegmentationModelWrapper
 from .custom_models import (
     CustomNNUNetWrapper,
     MOOSEWrapper,

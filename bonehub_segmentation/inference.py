@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 import numpy as np
 import nibabel as nib
-from .model_wrappers.base import SegmentationModelWrapper
+from .model_wrappers.base_wrapper import SegmentationModelWrapper
 
 
 class SegmentationInference:
