@@ -50,9 +50,9 @@ class BoneDat(BaseDatasetIO):
             modality="CT",
         )
         super().__init__(dataset_root, dataset_info)
-        self.register_data_handler("read_dataset", read_dataset)
-        self.register_data_handler("export_image", export_image)
-        self.register_data_handler("export_segmentation", export_segmentation)
+        self.custom_data_handlers.read_dataset = read_dataset
+        self.custom_data_handlers.export_image = export_image
+        self.custom_data_handlers.export_segmentation = export_segmentation
 
 
 def read_dataset(dataset_root: Path) -> list[DataSource]:

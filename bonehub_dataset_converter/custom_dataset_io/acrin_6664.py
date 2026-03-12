@@ -45,8 +45,8 @@ class ACRIN6664(BaseDatasetIO):
             url="https://doi.org/10.7937/K9/TCIA.2015.NWTESAY1",
         )
         super().__init__(dataset_root, dataset_info)
-        self.register_data_handler("read_dataset", read_dataset)
-        self.register_data_handler("export_image", _export_image)
+        self.custom_data_handlers.read_dataset = read_dataset
+        self.custom_data_handlers.export_image = _export_image
 
 
 def read_dataset(dataset_root: Path) -> list[DataSource]:
@@ -63,7 +63,7 @@ def read_dataset(dataset_root: Path) -> list[DataSource]:
 
             subject_metadata = get_dicom_subject_metadata(str(subdir))
             data = DataSource(
-                img_path=str(subdir),
+                img_path=subdir,
                 subject_info=SubjectInfo(
                     source_subject_path=str(subdir.relative_to(dataset_root / "CT COLONOGRAPHY")),
                     age=subject_metadata["age"],

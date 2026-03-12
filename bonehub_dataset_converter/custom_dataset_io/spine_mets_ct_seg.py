@@ -67,9 +67,9 @@ class SpineMetsCTSeg(BaseDatasetIO):
             modality="CT",
         )
         super().__init__(dataset_root, dataset_info)
-        self.register_data_handler("read_dataset", read_dataset)
-        self.register_data_handler("export_image", _export_image)
-        self.register_data_handler("export_segmentation", export_segmentation)
+        self.custom_data_handlers.read_dataset = read_dataset
+        self.custom_data_handlers.export_image = _export_image
+        self.custom_data_handlers.export_segmentation = export_segmentation
 
 
 def read_dataset(dataset_root: Path) -> list[DataSource]:
@@ -89,8 +89,8 @@ def read_dataset(dataset_root: Path) -> list[DataSource]:
 
         subject_metadata = get_dicom_subject_metadata(str(dicom_image_dir))
         data = DataSource(
-            img_path=str(dicom_image_dir),
-            segmentation_path=str(dicom_label_file),
+            img_path=dicom_image_dir,
+            segmentation_path=dicom_label_file,
             subject_info=SubjectInfo(
                 source_subject_path=case_id,
                 age=subject_metadata["age"],
