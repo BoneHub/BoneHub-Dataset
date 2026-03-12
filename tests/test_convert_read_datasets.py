@@ -90,5 +90,23 @@ class TestACRIN6664(unittest.TestCase):
         self.assertTrue(dataset.check_dataset_integrity())
 
 
+# @unittest.skip("")
+class TestVSDReconstruction(unittest.TestCase):
+    def test_convert(self):
+        data_root = Path("Z:/BoneHub/Public_Datasets/036 VSDFullBodyBoneReconstruction/Hamid_processed")
+        public_dataset = custom_dataset_io.VSDReconstruction(data_root)
+        public_dataset.export_to_bonehub_format(
+            output_root=_BONEHUB_DATASET_ROOT, output_dataset_id=5, overwrite=True, verbose=_VERBOSE
+        )
+
+    def test_read(self):
+        dataset = BoneHubDatasetIO(_BONEHUB_DATASET_ROOT, dataset_id=5)
+
+        self.assertEqual(dataset.dataset_info.dataset_id, 5)
+        self.assertEqual(dataset.subject_info[0].subject_id, 1)
+        self.assertEqual(len(dataset), 2)
+        self.assertTrue(dataset.check_dataset_integrity())
+
+
 if __name__ == "__main__":
     unittest.main()

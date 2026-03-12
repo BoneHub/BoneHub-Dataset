@@ -76,6 +76,7 @@ def export_nii_nrrd_segmentation(input_label_path: Path, output_label_path: Path
                 separate_folder=False,
                 print_log=False,
                 output_dtype=torch.uint16,
+                writer="ITKWriter",
             ),
         ]
     )

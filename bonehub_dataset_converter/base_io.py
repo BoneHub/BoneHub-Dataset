@@ -15,17 +15,43 @@ class DataSource(BaseModel):
     img_path: Path | None = Field(
         None, description="Path to file or folder containing the image data (e.g. NifTI file or DICOM folder)"
     )
-    img_transform: sitk.Transform | None = Field(
-        None,
-        description="SimpleITK Transform object representing the spatial transformation to be applied to the image data during export.",
-    )
-    segmentation_path: List[Path] | None = Field(
-        None, description="a list of file paths pointing to segmentation data (e.g. NIfTI file or DICOM file)"
+    segmentation_path: Path | None = Field(
+        None, description="Path to file containing segmentation data (e.g. NIfTI file or DICOM file)"
     )
     mesh_path: List[Path] | None = Field(None, description="a list of file paths pointing to mesh data (e.g. STL or OBJ files)")
     nurbs_path: List[Path] | None = Field(None, description="a list of file paths pointing to NURBS data.")
     subject_info: SubjectInfo | None = Field(None, description="Information about the subject")
+
     model_config = ConfigDict(strict=True, extra="forbid", validate_assignment=True, arbitrary_types_allowed=True)
+
+
+class CustomDataHandlers(BaseModel):
+    """
+    Class to contain custom data handling functions for dataset conversion.
+    """
+
+    read_dataset: Callable[[Path], List[DataSource]] = Field(
+        None,
+        description="Function to read the dataset and return a list of DataSource objects. Signature: (dataset_root: Path) -> List[DataSource]",
+    )
+    export_image: Callable[[DataSource, Path], None] = Field(
+        None,
+        description="Function to export image data. Signature: (data: DataSource, output_file_path: Path) -> None",
+    )
+    export_segmentation: Callable[[DataSource, Path], None] = Field(
+        None,
+        description="Function to export segmentation data. Signature: (data: DataSource, output_file_path: Path) -> None",
+    )
+    export_mesh: Callable[[DataSource, Path], None] = Field(
+        None,
+        description="Function to export mesh data. Signature: (data: DataSource, output_folder_path: Path) -> None",
+    )
+    export_nurbs: Callable[[DataSource, Path], None] = Field(
+        None,
+        description="Function to export NURBS data. Signature: (data: DataSource, output_folder_path: Path) -> None",
+    )
+
+    model_config = ConfigDict(strict=True, extra="forbid", validate_assignment=True)
 
 
 class BaseDatasetIO:
@@ -36,64 +62,10 @@ class BaseDatasetIO:
         dataset_info (DatasetInfo): Information about the dataset to be included in the metadata.
     """
 
-    class CustomDataHandlers(dict):
-        valid_keys = {
-            "read_dataset",
-            "export_image",
-            "export_segmentation",
-            "export_mesh",
-            "export_nurbs",
-        }
-
-        def __setitem__(self, key, value):
-            if key not in self.valid_keys:
-                raise KeyError(f"Invalid function name: {key}. Valid function names are: {self.valid_keys}.")
-            if not callable(value):
-                raise ValueError(f"Provided object for '{key}' is not callable")
-            return super().__setitem__(key, value)
-
-        def __getitem__(self, key):
-            if key not in self:
-                raise KeyError(
-                    f"Function '{key}' has not been registered. Register it using 'register_data_handler' method before accessing."
-                )
-            return super().__getitem__(key)
-
     def __init__(self, dataset_root: Path, dataset_info: DatasetInfo):
         self.dataset_root = dataset_root
         self.dataset_info = dataset_info
-        self.custom_data_handlers = self.CustomDataHandlers()
-
-    def register_data_handler(self, func_name: str, func: Callable):
-        """
-        Register a custom function for dataset operations.
-
-        Args:
-            func_name: Name of the function to register. Must be one of:
-                - 'read_dataset'
-                - 'export_image'
-                - 'export_segmentation'
-                - 'export_mesh'
-                - 'export_nurbs'
-            func: The callable function to register. Must match the expected signature:
-                - read_dataset: (dataset_root: Path) -> List[DataSource]
-                - export_image: (data: DataSource, output_file_path: Path) -> None
-                - export_segmentation: (data: DataSource, output_file_path: Path) -> None
-                - export_mesh: (data: DataSource, output_folder_path: Path) -> None
-                - export_nurbs: (data: DataSource, output_folder_path: Path) -> None
-
-        Raises:
-            ValueError: If func_name is invalid or func is not callable.
-
-        Example:
-            >>> def my_read_dataset(dataset_root: Path) -> List[DataSource]:
-            ...     # implementation
-            ...     return datalist
-            >>> io = BaseDatasetIO(root, info)
-            >>> io.register_data_handler('read_dataset', my_read_dataset)
-        """
-
-        self.custom_data_handlers[func_name] = func
+        self.custom_data_handlers = CustomDataHandlers()
 
     def export_to_bonehub_format(
         self, output_root: Path, output_dataset_id: int, overwrite: bool = False, verbose: bool = True
@@ -120,7 +92,7 @@ class BaseDatasetIO:
 
         if verbose:
             print(f"Reading dataset from '{self.dataset_root}'...")
-        datalist: list[DataSource] = self.custom_data_handlers["read_dataset"](self.dataset_root)
+        datalist: list[DataSource] = self.custom_data_handlers.read_dataset(self.dataset_root)
         if verbose:
             print(f"Finished reading dataset. Found {len(datalist)} subjects.")
             print(f"Exporting dataset to '{dataset_path}'...")
@@ -141,7 +113,7 @@ class BaseDatasetIO:
                 export_file_path = (
                     dataset_path / "Image" / f"{self.dataset_info.dataset_id:03d}_{data.subject_info.subject_id:06d}.nii.gz"
                 )
-                self.custom_data_handlers["export_image"](data, export_file_path)
+                self.custom_data_handlers.export_image(data, export_file_path)
                 if verbose:
                     print(f"Exported image '{data.img_path}' to '{export_file_path}'")
             if data.segmentation_path:
@@ -151,7 +123,7 @@ class BaseDatasetIO:
                     / "Segmentation"
                     / f"{self.dataset_info.dataset_id:03d}_{data.subject_info.subject_id:06d}.nii.gz"
                 )
-                self.custom_data_handlers["export_segmentation"](data, export_file_path)
+                self.custom_data_handlers.export_segmentation(data, export_file_path)
                 available_labels = sorted(list(set(nib.load(export_file_path).get_fdata().flatten())))
                 if available_labels:
                     for label_id in available_labels:
@@ -165,7 +137,11 @@ class BaseDatasetIO:
                 export_folder_path = (
                     dataset_path / "Mesh" / f"{self.dataset_info.dataset_id:03d}_{data.subject_info.subject_id:06d}"
                 )
-                self.custom_data_handlers["export_mesh"](data, export_folder_path)
+                self.custom_data_handlers.export_mesh(data, export_folder_path)
+                available_meshes = [mesh_file.stem for mesh_file in export_folder_path.glob("*.stl")]
+                for mesh_name in available_meshes:
+                    mesh_name = mesh_name.replace(export_folder_path.name + "_", "")
+                    sinfo.set_mesh_value(mesh_name, 1)
                 if verbose:
                     print(f"Exported mesh '{data.mesh_path}' to '{export_folder_path}'")
             if data.nurbs_path:
