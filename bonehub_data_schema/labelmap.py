@@ -345,3 +345,8 @@ bonehub_to_snomed = {  # use https://github.com/ENHANCE-PET/MOOSE/blob/main/moos
         "name": "Entire bone of head",
     },
 }
+
+class LandmarkLabelMap(Enum):
+    """Unified landmark labels."""
+    pass
+    
