@@ -1,3 +1,11 @@
+<div align="center">
+
+# ✨[**Browse BoneHub Dataset Here**](https://bonehub.github.io/BoneHub-Dataset)✨
+
+### 👆 **Click above to explore** 👆
+
+</div>
+
 # BoneHub Dataset
 
 A Python package for generating the BoneHub Dataset, including data schema, dataset conversion, segmentation, mesh and NURBS generation.
