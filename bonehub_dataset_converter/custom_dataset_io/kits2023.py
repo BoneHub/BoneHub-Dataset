@@ -64,7 +64,7 @@ def read_dataset(dataset_root: Path) -> list[DataSource]:
                 source_subject_path=case_id,
                 # TODO: confirm if this is the correct age field to use
                 # age=int(metadata[case_id]["age_at_nephrectomy"]),
-                gender=metadata[case_id]["gender"],
+                gender=process_gender(metadata[case_id]["gender"]),
                 bmi=metadata[case_id]["bmi"],
                 imaging_modality="CT",
                 image=True,
@@ -81,3 +81,15 @@ def read_dataset(dataset_root: Path) -> list[DataSource]:
 
 def export_image(data: DataSource, output_file_path: Path):
     shutil.copyfile(data.img_path, output_file_path)
+
+
+def process_gender(gender_str: str) -> str:
+    gender_str = gender_str.strip().upper()
+    if not gender_str:
+        return None
+    if gender_str in {"M", "MALE"}:
+        return "M"
+    elif gender_str in {"F", "FEMALE"}:
+        return "F"
+    else:
+        return "O"  # Other/Unknown
