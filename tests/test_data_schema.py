@@ -11,10 +11,15 @@ class TestSubjectInfo(unittest.TestCase):
             subject_id=1,
             source_subject_path="path/to/subject",
             age=30,
+            image=False,
+            gender="F",
             segmentation={"FEMUR_LEFT": 1},
         )
+        self.assertEqual(subject_info.gender, "F")
         with self.assertRaises(ValueError):
             subject_info.set_segmentation_value("FEMUR", 1)
+        with self.assertRaises(ValueError):
+            subject_info.gender = "male"
         with self.assertRaises(ValueError):
             subject_info.segmentation = {"FEMUR_LEFT": 3}
 
