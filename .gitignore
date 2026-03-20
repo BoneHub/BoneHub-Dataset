@@ -218,9 +218,5 @@ __marimo__/
 # vscode
 .vscode/
 
-# dummy bonehub dataset created during testing
-tests/dummy_bonehub_dataset/
-
-
-# test folders
+# temporary folders
 temp_*

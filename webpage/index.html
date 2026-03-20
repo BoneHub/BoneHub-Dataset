@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BoneHub Dataset</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <header>
+        <div class="container">
+            <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap;">
+                <div>
+                    <h1>BoneHub Dataset</h1>
+                    <p class="subtitle">A Comprehensive Resource for 3D Bone Shapes</p>
+                </div>
+                <a href="https://github.com/BoneHub/BoneHub-Dataset" target="_blank" rel="noopener noreferrer"
+                    style="color: white; text-decoration: none; transition: opacity 0.2s;" title="View on GitHub"
+                    onmouseover="this.style.opacity='0.7'" onmouseout="this.style.opacity='1'">
+                    <svg width="48" height="48" viewBox="0 0 16 16" fill="white" xmlns="http://www.w3.org/2000/svg">
+                        <path
+                            d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" />
+                    </svg>
+                </a>
+            </div>
+            <p class="note">
+                This dataset is a work in progress and will be updated regularly. If you have any questions,
+                suggestions, or would like to contribute, please feel free to reach out to us via email.
+            </p>
+        </div>
+    </header>
+
+    <main class="container">
+        <section class="about">
+            <h2>📖 About</h2>
+            <p>
+                This dataset contains 3D bone shapes derived from public CT and MRI datasets, along with
+                associated metadata.
+            </p>
+        </section>
+
+        <section class="datasets-section">
+            <h2>🗂️ Browse Datasets</h2>
+            <div class="search-controls">
+                <input type="text" id="datasetSearchInput" placeholder="Search datasets..." aria-label="Search datasets">
+                <button id="clearDatasetFilters" class="btn-secondary">Clear Filters</button>
+                <button id="toggleDatasetColumns" class="btn-secondary">Show/Hide Columns</button>
+                <button id="exportDatasetsCSV" class="btn-export">📥 Export to CSV</button>
+            </div>
+            <div class="stats">
+                <span id="datasetCount">Loading datasets...</span>
+            </div>
+            <div id="datasetColumnToggles" class="column-toggles" style="display: none;">
+                <h3>Select Columns to Display</h3>
+                <div id="datasetColumnCheckboxes" class="checkbox-grid">
+                    <!-- Dataset column checkboxes will be dynamically generated -->
+                </div>
+            </div>
+            <div class="table-container compact-table-container">
+                <table id="datasetsTable">
+                    <thead>
+                        <tr id="datasetsTableHeader">
+                            <!-- Dataset headers will be dynamically generated -->
+                        </tr>
+                        <tr id="datasetsFilterRow">
+                            <!-- Dataset filters will be dynamically generated -->
+                        </tr>
+                    </thead>
+                    <tbody id="datasetsTableBody">
+                        <!-- Dataset rows will be dynamically generated -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="search-section">
+            <h2>🔍 Browse Subjects</h2>
+            <div class="search-controls">
+                <input type="text" id="searchInput" placeholder="Search subjects..." aria-label="Search subjects">
+                <button id="clearFilters" class="btn-secondary">Clear Filters</button>
+                <button id="toggleColumns" class="btn-secondary">Show/Hide Columns</button>
+                <button id="exportCSV" class="btn-export">📥 Export to CSV</button>
+            </div>
+            <div class="stats">
+                <span id="subjectCount">Loading subjects...</span>
+                </span>
+            </div>
+            <div id="columnToggles" class="column-toggles" style="display: none;">
+                <h3>Select Columns to Display</h3>
+                <div id="columnCheckboxes" class="checkbox-grid">
+                    <!-- Column checkboxes will be dynamically generated -->
+                </div>
+            </div>
+
+            <div class="table-container">
+                <table id="subjectsTable">
+                    <thead>
+                        <tr id="tableHeader">
+                            <!-- Headers will be dynamically generated -->
+                        </tr>
+                        <tr id="filterRow">
+                            <!-- Filter inputs will be dynamically generated -->
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody">
+                        <!-- Data rows will be dynamically generated -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="contact">
+            <h2>📬 Contact</h2>
+            <p>This repository is maintained by <strong>Hamid Alavi</strong> and <strong>Malte Asseln</strong></p>
+            <p>Department of Biomechanical Engineering, University of Twente, The Netherlands</p>
+            <p>
+                <a href="mailto:hamid.alavi@utwente.nl">hamid.alavi@utwente.nl</a> |
+                <a href="mailto:m.asseln@utwente.nl">m.asseln@utwente.nl</a>
+            </p>
+        </section>
+    </main>
+
+    <script src="data.js"></script>
+    <script src="app.js"></script>
+</body>
+
+</html>
