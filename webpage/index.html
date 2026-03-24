@@ -14,8 +14,9 @@
             <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap;">
                 <div>
                     <h1>BoneHub Dataset</h1>
-                    <p class="subtitle">A comprehensive, harmonized dataset for 3D bone shapes, medical images, and related metadata,
-                    generated from public datasets, designed for biomedical research.</p>
+                    <p class="subtitle">A comprehensive, harmonized dataset for 3D bone shapes, medical images, and
+                        related metadata,
+                        generated from public datasets, designed for biomedical research.</p>
                 </div>
                 <a href="https://github.com/BoneHub/BoneHub-Dataset" target="_blank" rel="noopener noreferrer"
                     style="color: white; text-decoration: none; transition: opacity 0.2s;" title="View on GitHub"
@@ -42,10 +43,52 @@
             </p>
         </section>
 
+        <section class="overview-section">
+            <h2>Dataset Overview</h2>
+            <!-- <p class="overview-subtitle">Auto-generated summary from the currently published subject metadata.</p> -->
+
+            <div id="overviewMetrics" class="overview-metrics" aria-live="polite">
+                <!-- Overview metric cards are rendered by overview.js -->
+            </div>
+
+            <div class="overview-grid">
+                <div class="overview-panel">
+                    <h3>Gender Distribution</h3>
+                    <div id="overviewGenderBars" class="overview-bars" aria-live="polite">
+                        <!-- Gender bars are rendered by overview.js -->
+                    </div>
+                </div>
+
+                <div class="overview-panel">
+                    <h3>Data Asset Coverage</h3>
+                    <div id="overviewAssetBars" class="overview-bars" aria-live="polite">
+                        <!-- Asset bars are rendered by overview.js -->
+                    </div>
+                </div>
+            </div>
+
+            <div class="overview-grid">
+                <div class="overview-panel">
+                    <h3>Age Profile</h3>
+                    <div id="overviewAgeStats" class="overview-list" aria-live="polite">
+                        <!-- Age stats are rendered by overview.js -->
+                    </div>
+                </div>
+
+                <div class="overview-panel">
+                    <h3>Most Frequent Bone Labels</h3>
+                    <ol id="overviewTopBones" class="overview-top-bones" aria-live="polite">
+                        <!-- Bone frequencies are rendered by overview.js -->
+                    </ol>
+                </div>
+            </div>
+        </section>
+
         <section class="datasets-section">
             <h2>🗂️ Browse Datasets</h2>
             <div class="search-controls">
-                <input type="text" id="datasetSearchInput" placeholder="Search datasets..." aria-label="Search datasets">
+                <input type="text" id="datasetSearchInput" placeholder="Search datasets..."
+                    aria-label="Search datasets">
                 <button id="clearDatasetFilters" class="btn-secondary">Clear Filters</button>
                 <button id="toggleDatasetColumns" class="btn-secondary">Show/Hide Columns</button>
                 <button id="exportDatasetsCSV" class="btn-export">📥 Export to CSV</button>
@@ -124,6 +167,7 @@
     </main>
 
     <script src="data.js"></script>
+    <script src="overview.js"></script>
     <script src="app.js"></script>
 </body>
 
