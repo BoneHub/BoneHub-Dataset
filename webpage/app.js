@@ -607,10 +607,20 @@ function createExpandableCellContent(value) {
 }
 
 function getExpandableItems(value) {
-    return formatCellValue(value)
+    const items = formatCellValue(value)
         .split(';')
         .map(item => item.trim())
         .filter(Boolean);
+    
+    // Natural sort: numeric-aware, case-insensitive
+    items.sort((a, b) => {
+        return a.localeCompare(b, undefined, {
+            numeric: true,
+            sensitivity: 'base'
+        });
+    });
+    
+    return items;
 }
 
 function createLinkButtons(linkString) {
