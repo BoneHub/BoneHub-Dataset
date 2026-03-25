@@ -19,6 +19,9 @@
         if (raw === 'F' || raw === 'FEMALE') {
             return 'Female';
         }
+        if (raw === 'O' || raw === 'OTHER') {
+            return 'Other';
+        }
         if (raw) {
             return raw;
         }
