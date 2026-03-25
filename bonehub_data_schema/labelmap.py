@@ -79,6 +79,8 @@ class BoneLabelMap(Enum):
     RIB_11_RIGHT = 3122
     RIB_12_LEFT = 3123
     RIB_12_RIGHT = 3124
+    RIB_13_LEFT = 3125
+    RIB_13_RIGHT = 3126
 
     STERNUM = 3200  # sternum bone
 
@@ -346,7 +348,8 @@ bonehub_to_snomed = {  # use https://github.com/ENHANCE-PET/MOOSE/blob/main/moos
     },
 }
 
+
 class LandmarkLabelMap(Enum):
     """Unified landmark labels."""
+
     pass
-    
