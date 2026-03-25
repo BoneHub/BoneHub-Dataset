@@ -1,21 +1,22 @@
 """Generate webpage/data.js from BoneHub Dataset_info and Subject_info files.
 
-The script scans all ``Dataset_info_*.json`` and ``Subject_info_*.json`` files under a configured root
-directory and writes a JavaScript array consumed by the static webpage.
+Usage::
+
+    python webpage/update_data.py <dataset_root>
+
+The script scans all ``Dataset_info_*.json`` and ``Subject_info_*.json`` files under the given
+dataset root directory and writes a JavaScript array consumed by the static webpage.
 """
 
+import argparse
 import json
-import os
-from configparser import ConfigParser
 from datetime import datetime
 from pathlib import Path
 
 from bonehub_data_schema import SubjectInfo, BoneHubDatasetIO
 
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-WEBPAGE_DIR = PROJECT_ROOT / "webpage"
-CONFIG_PATH = WEBPAGE_DIR / "config.ini"
+WEBPAGE_DIR = Path(__file__).resolve().parent
 OUTPUT_PATH = WEBPAGE_DIR / "data.js"
 SUBJECT_INFO_FIELDS = tuple(SubjectInfo.model_fields.keys())
 
@@ -47,23 +48,6 @@ def _format_structures(structures: dict | None) -> str:
     if not structures:
         return ""
     return "; ".join(f"{label}" for label, value in sorted(structures.items()))
-
-
-def _load_configured_root() -> Path:
-    config = ConfigParser()
-    config.read(CONFIG_PATH)
-
-    env_root = os.environ.get("BONEHUB_DATA_ROOT")
-    if env_root:
-        candidate = Path(env_root)
-        return candidate if candidate.is_absolute() else (PROJECT_ROOT / candidate).resolve()
-
-    if config.has_option("BoneHub-Dataset", "root_dir"):
-        root_dir = Path(config["BoneHub-Dataset"]["root_dir"])
-    else:
-        raise ValueError(f"Missing 'root_dir' in config file: {CONFIG_PATH}")
-
-    return root_dir if root_dir.is_absolute() else (PROJECT_ROOT / root_dir).resolve()
 
 
 def _collect_data(dataset_root: Path) -> tuple[list[dict], list[dict]]:
@@ -106,7 +90,14 @@ def _write_data_js(dataset_rows: list[dict], subject_rows: list[dict]) -> None:
 
 
 def main() -> int:
-    dataset_root = _load_configured_root()
+    parser = argparse.ArgumentParser(description="Generate webpage/data.js from BoneHub dataset files.")
+    parser.add_argument("dataset_root", type=Path, help="Root directory containing the BoneHub Dataset_* folders.")
+    args = parser.parse_args()
+
+    dataset_root = args.dataset_root.resolve()
+    if not dataset_root.is_dir():
+        raise FileNotFoundError(f"Dataset root directory does not exist: {dataset_root}")
+
     dataset_rows, subject_rows = _collect_data(dataset_root)
     _write_data_js(dataset_rows, subject_rows)
 
