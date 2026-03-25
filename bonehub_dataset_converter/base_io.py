@@ -3,8 +3,7 @@ from pydantic import BaseModel, Field, ConfigDict
 import os
 import json
 import nibabel as nib
-from typing import Callable, List
-import SimpleITK as sitk
+from typing import Callable
 
 from bonehub_data_schema import DatasetInfo, SubjectInfo, BoneLabelMap
 
@@ -15,11 +14,11 @@ class DataSource(BaseModel):
     img_path: Path | None = Field(
         None, description="Path to file or folder containing the image data (e.g. NifTI file or DICOM folder)"
     )
-    segmentation_path: Path | None = Field(
-        None, description="Path to file containing segmentation data (e.g. NIfTI file or DICOM file)"
+    segmentation_path: Path | list[Path] | None = Field(
+        None, description="Path (or list of Paths) to segmentation data (e.g. NIfTI file or DICOM file)"
     )
-    mesh_path: List[Path] | None = Field(None, description="a list of file paths pointing to mesh data (e.g. STL or OBJ files)")
-    nurbs_path: List[Path] | None = Field(None, description="a list of file paths pointing to NURBS data.")
+    mesh_path: list[Path] | None = Field(None, description="a list of file paths pointing to mesh data (e.g. STL or OBJ files)")
+    nurbs_path: list[Path] | None = Field(None, description="a list of file paths pointing to NURBS data.")
     subject_info: SubjectInfo | None = Field(None, description="Information about the subject")
 
     model_config = ConfigDict(strict=True, extra="forbid", validate_assignment=True, arbitrary_types_allowed=True)
@@ -30,9 +29,9 @@ class CustomDataHandlers(BaseModel):
     Class to contain custom data handling functions for dataset conversion.
     """
 
-    read_dataset: Callable[[Path], List[DataSource]] = Field(
+    read_dataset: Callable[[Path], list[DataSource]] = Field(
         None,
-        description="Function to read the dataset and return a list of DataSource objects. Signature: (dataset_root: Path) -> List[DataSource]",
+        description="Function to read the dataset and return a list of DataSource objects. Signature: (dataset_root: Path) -> list[DataSource]",
     )
     export_image: Callable[[DataSource, Path], None] = Field(
         None,
