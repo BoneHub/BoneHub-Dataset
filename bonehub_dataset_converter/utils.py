@@ -42,51 +42,44 @@ def export_image(input_image_path: Path, output_image_path: Path):
     shutil.move(saved_file, output_image_path)
 
 
-def export_nii_nrrd_segmentation(input_label_path: Path, output_label_path: Path, label_mapping: dict):
+def export_nii_segmentation(
+    input_label_paths: Path | list[Path],
+    output_label_path: Path,
+    label_mappings: dict | list[dict],
+):
     """
-    Converts original labels to BoneHub standardized labels and saves the result.
-    input_label_path: Path to the original label file in NIfTI or NRRD format.
-    output_label_path: Path to save the converted label file ending with `.nii.gz`.
-    label_mapping: Dictionary mapping original labels to BoneHub labels.
+    Converts one or more NIfTI segmentation files to BoneHub standardized labels and saves the result.
+    input_label_paths: Path (or list of Paths) to the original label file(s) in NIfTI format.
+    output_label_path: Path to save the combined label file ending with `.nii.gz`.
+    label_mappings: Dictionary (or list of dictionaries) mapping original labels to BoneHub labels.
+                    When multiple files are given, later files take priority over earlier ones in case of overlapping voxels.
     """
-    # Create and apply transform pipeline
-    transform = Compose(
-        [
-            LoadImaged(
-                keys=["label"],
-                image_only=False,
-                reader="ITKReader",
-            ),
-            Lambdad(
-                keys=["label"],
-                func=lambda x: torch.where(torch.isin(x, torch.tensor(list(label_mapping.keys()), dtype=torch.int)), x, 0),
-            ),
-            MapLabelValued(
-                keys=["label"],
-                orig_labels=list(label_mapping.keys()),
-                target_labels=list(label_mapping.values()),
-                dtype=torch.int,
-            ),
-            SaveImaged(
-                keys=["label"],
-                output_dir=str(output_label_path.parent),
-                output_postfix="",
-                output_ext=".nii.gz",
-                resample=False,
-                separate_folder=False,
-                print_log=False,
-                output_dtype=torch.uint16,
-                writer="ITKWriter",
-            ),
-        ]
-    )
+    if isinstance(input_label_paths, Path):
+        input_label_paths = [input_label_paths]
+    if isinstance(label_mappings, dict):
+        label_mappings = [label_mappings]
 
-    # Save and rename to desired output path
-    transform({"label": str(input_label_path)})
-    saved_file = Path(output_label_path.parent) / (Path(input_label_path).name)
-    if not str(saved_file).endswith(".nii.gz"):
-        saved_file = saved_file.with_suffix(".nii.gz")
-    shutil.move(saved_file, output_label_path)
+    combined_array = None
+    ref_image = None
+
+    for input_label_path, label_mapping in zip(input_label_paths, label_mappings):
+        image = sitk.ReadImage(str(input_label_path))
+        array = sitk.GetArrayFromImage(image)
+
+        if combined_array is None:
+            combined_array = np.zeros(array.shape, dtype=np.uint16)
+            ref_image = image
+
+        mapped_array = np.zeros(array.shape, dtype=np.uint16)
+        for orig_label, bonehub_label in label_mapping.items():
+            mapped_array[array == orig_label] = bonehub_label
+
+        # Non-zero voxels from this file overwrite the combined array
+        combined_array[mapped_array != 0] = mapped_array[mapped_array != 0]
+
+    combined_image = sitk.GetImageFromArray(combined_array)
+    combined_image.CopyInformation(ref_image)
+    sitk.WriteImage(combined_image, str(output_label_path))
 
 
 def export_dicom_segmentation(input_image_path: Path, input_label_path: Path, output_label_path: Path, label_mapping: dict):

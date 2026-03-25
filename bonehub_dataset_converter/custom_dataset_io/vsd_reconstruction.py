@@ -14,7 +14,7 @@ import shutil
 from bonehub_data_schema import SubjectInfo, DatasetInfo, BoneLabelMap as BLM
 
 from .. import BaseDatasetIO, DataSource
-from ..utils import export_nii_nrrd_segmentation
+from ..utils import export_nii_segmentation
 
 from . import MAX_SUBJECTS_FOR_TESTING
 
@@ -235,11 +235,7 @@ def export_image(data: DataSource, output_file_path: Path):
 
 
 def export_segmentation(data: DataSource, output_file_path: Path):
-    export_nii_nrrd_segmentation(
-        input_label_path=data.segmentation_path,
-        output_label_path=output_file_path,
-        label_mapping=label_mapping,
-    )
+    export_nii_segmentation(data.segmentation_path, output_file_path, label_mapping)
 
 
 def export_mesh(data: DataSource, output_dir_path: Path):
