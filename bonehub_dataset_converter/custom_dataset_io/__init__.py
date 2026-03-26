@@ -23,6 +23,7 @@ from .acrin_6664 import ACRIN6664
 from .bonedat import BoneDat
 from .vsd_reconstruction import VSDReconstruction
 from .enhance_pet import EnhancePET
+from .totalsegmentator_ct import TotalSegmentatorCT
 
 __all__ = [
     "KiTS2023",
@@ -31,4 +32,5 @@ __all__ = [
     "BoneDat",
     "VSDReconstruction",
     "EnhancePET",
+    "TotalSegmentatorCT",
 ]
