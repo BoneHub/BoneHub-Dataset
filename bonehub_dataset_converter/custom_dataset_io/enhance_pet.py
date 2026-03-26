@@ -193,7 +193,7 @@ def read_dataset(dataset_root: Path) -> list[DataSource]:
 
 
 def export_image(data: DataSource, output_file_path: Path):
-    shutil.copy(str(data.img_path), str(output_file_path))
+    shutil.copyfile(str(data.img_path), str(output_file_path))
 
 
 def export_segmentation(data: DataSource, output_file_path: Path):

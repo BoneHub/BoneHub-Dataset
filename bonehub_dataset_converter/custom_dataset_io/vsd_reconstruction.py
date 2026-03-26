@@ -231,7 +231,7 @@ def read_dataset(dataset_root: Path) -> list[DataSource]:
 
 
 def export_image(data: DataSource, output_file_path: Path):
-    shutil.copy(str(data.img_path), str(output_file_path))
+    shutil.copyfile(str(data.img_path), str(output_file_path))
 
 
 def export_segmentation(data: DataSource, output_file_path: Path):
@@ -245,6 +245,6 @@ def export_mesh(data: DataSource, output_dir_path: Path):
         try:
             label_name = mesh_label_mapping[mesh_name]
             output_mesh_path = output_dir_path / f"{output_dir_path.name}_{label_name}.stl"
-            shutil.copy(str(mesh_file), str(output_mesh_path))
+            shutil.copyfile(str(mesh_file), str(output_mesh_path))
         except KeyError:
             print(f"Warning: Mesh file '{mesh_file}' does not match any known label and will be skipped.")

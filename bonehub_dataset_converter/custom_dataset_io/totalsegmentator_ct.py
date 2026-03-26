@@ -141,10 +141,23 @@ def read_dataset(dataset_root: Path) -> list[DataSource]:
 
 
 def export_image(data: DataSource, output_file_path: Path):
+    """
+    In TotalSegmentator dataset, eventhough the images are already in NIfTI format, some of them cannot be read correctly even with 3DSlicer.
+    Therefore, instead of directly copying the files, we use the export_image_monai function to read and write the images,
+    which ensures that the output images are in a consistent format that can be read by all tools.
+    """
     export_image_monai(data.img_path, output_file_path)
 
 
 def export_segmentation(data: DataSource, output_file_path: Path):
+    """
+    In TotalSegmentator dataset, there are two issues regarding the segmentation files:
+    1) The segmentations are provided as separate files for each bone
+    2) Even though the segmentations are in NIfTI format, some of them cannot be read correctly by 3DSlicer, likely due to some inconsistencies in the file formatting.
+    To address these issues, we first read and write each segmentation file using the export_image_monai function to ensure they are in a consistent format,
+    and then we combine them into a single segmentation file with the correct BoneHub labels using the export_nii_segmentation function.
+    """
+
     temp_folder = output_file_path.parent / f"temp_{output_file_path.name}"
     os.makedirs(temp_folder, exist_ok=True)
     temp_seg_paths = []
