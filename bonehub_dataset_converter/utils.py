@@ -1,30 +1,31 @@
 import os
 import shutil
 from pathlib import Path
-import torch
 import numpy as np
-from monai.transforms import LoadImaged, SaveImaged, Compose, MapLabelValued, Lambdad
+from monai.transforms import LoadImaged, SaveImaged, Compose
 import pydicom
 import pydicom_seg
 import SimpleITK as sitk
 
 
-def export_image(input_image_path: Path, output_image_path: Path):
+def export_image_monai(input_image_path: Path, output_image_path: Path):
     """
     Converts original images to NIfTI format (nii.gz) and saves the result.
     input_image_path: Path to the original image file or folder (in case of DICOM series).
     output_image_path: Path to save the converted image file ending with `.nii.gz`.
     """
-    # Create and apply transform pipeline
+    temp_folder = output_image_path.parent / f"temp_{output_image_path.name}"
+    os.makedirs(temp_folder, exist_ok=True)
     transform = Compose(
         [
             LoadImaged(
                 keys=["image"],
                 image_only=False,
+                reader="ITKReader",
             ),
             SaveImaged(
                 keys=["image"],
-                output_dir=str(output_image_path.parent),
+                output_dir=str(temp_folder),
                 output_postfix="",
                 output_ext=".nii.gz",
                 resample=False,
@@ -36,10 +37,11 @@ def export_image(input_image_path: Path, output_image_path: Path):
 
     # Save and rename to desired output path
     transform({"image": str(input_image_path)})
-    saved_file = Path(output_image_path.parent) / (Path(input_image_path).name)
+    saved_file = temp_folder / (Path(input_image_path).name)
     if not str(saved_file).endswith(".nii.gz"):
         saved_file = saved_file.with_suffix(".nii.gz")
-    shutil.move(saved_file, output_image_path)
+    shutil.copyfile(saved_file, output_image_path)
+    shutil.rmtree(temp_folder, ignore_errors=True)
 
 
 def export_nii_segmentation(
@@ -64,11 +66,21 @@ def export_nii_segmentation(
 
     for input_label_path, label_mapping in zip(input_label_paths, label_mappings):
         image = sitk.ReadImage(str(input_label_path))
+
+        if ref_image is None:
+            ref_image = image
+        elif image.GetSize() != ref_image.GetSize() or image.GetOrigin() != ref_image.GetOrigin():
+            # Resample to match the reference image grid
+            resampler = sitk.ResampleImageFilter()
+            resampler.SetReferenceImage(ref_image)
+            resampler.SetInterpolator(sitk.sitkNearestNeighbor)
+            resampler.SetDefaultPixelValue(0)
+            image = resampler.Execute(image)
+
         array = sitk.GetArrayFromImage(image)
 
         if combined_array is None:
             combined_array = np.zeros(array.shape, dtype=np.uint16)
-            ref_image = image
 
         mapped_array = np.zeros(array.shape, dtype=np.uint16)
         for orig_label, bonehub_label in label_mapping.items():
