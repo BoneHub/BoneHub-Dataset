@@ -61,6 +61,9 @@ def export_nii_segmentation(
     if isinstance(label_mappings, dict):
         label_mappings = [label_mappings]
 
+    if len(input_label_paths) != len(label_mappings):
+        raise ValueError("The number of input label paths must match the number of label mappings.")
+
     combined_array = None
     ref_image = None
 
@@ -94,7 +97,12 @@ def export_nii_segmentation(
     sitk.WriteImage(combined_image, str(output_label_path))
 
 
-def export_dicom_segmentation(input_image_path: Path, input_label_path: Path, output_label_path: Path, label_mapping: dict):
+def export_dicom_segmentation(
+    input_image_path: Path,
+    input_label_path: Path,
+    output_label_path: Path,
+    label_mapping: dict,
+):
     """
     Converts original DICOM labels to BoneHub standardized labels and saves the result.
     input_image_path: Path to the original DICOM image folder.
