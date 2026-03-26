@@ -122,7 +122,12 @@ class BaseDatasetIO:
         return sinfo.sorted_dict()
 
     def export_to_bonehub_format(
-        self, output_root: Path, output_dataset_id: int, overwrite: bool = False, verbose: bool = True
+        self,
+        output_root: Path,
+        output_dataset_id: int,
+        overwrite: bool = False,
+        verbose: bool = True,
+        num_workers: int = None,
     ):
         """
         Export the dataset to BoneHub's standard format.
@@ -158,8 +163,9 @@ class BaseDatasetIO:
 
         # Process subjects in parallel using ThreadPoolExecutor
         subject_info = [None] * len(datalist)
-        max_workers = os.cpu_count() or 4
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        if num_workers is None:
+            num_workers = os.cpu_count() or 4
+        with ThreadPoolExecutor(max_workers=num_workers) as executor:
             # Submit all tasks
             futures = {
                 executor.submit(self._process_subject, subject_id, data, dataset_path, verbose): subject_id - 1
