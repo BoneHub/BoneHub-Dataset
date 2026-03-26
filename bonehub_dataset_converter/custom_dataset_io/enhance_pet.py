@@ -3,7 +3,6 @@ Enhance-PET-1.6k Dataset Converter
 url: https://github.com/ENHANCE-PET/MOOSE/blob/main/DATA_CARD.md
 """
 
-import os
 from pathlib import Path
 import shutil
 import pandas as pd
@@ -168,16 +167,10 @@ def read_dataset(dataset_root: Path) -> list[DataSource]:
     for sub in subjects:
         sub_id = sub.name.replace(".nii.gz", "")
         subject_metadata = metadata.loc[metadata["Patient"] == int(sub_id)]
-        age = int(subject_metadata["Age"].iloc[0])
-        gender = subject_metadata["Sex"].iloc[0]
-        if pd.isna(gender):
-            gender = None
-        weight = float(subject_metadata["Weight [kg]"].iloc[0])
-        height = subject_metadata["Height [m]"].iloc[0]
-        if not pd.isna(height):
-            height = float(height) * 100  # Convert height from meters to centimeters
-        else:
-            height = None
+        age = None if pd.isna(v := subject_metadata["Age"].iloc[0]) else int(v)
+        gender = None if pd.isna(v := subject_metadata["Sex"].iloc[0]) else v.upper()
+        weight = None if pd.isna(v := subject_metadata["Weight [kg]"].iloc[0]) else float(v)
+        height = None if pd.isna(v := subject_metadata["Height [m]"].iloc[0]) else float(v) * 100
         peripheral_bones_path = dataset_root / "imaging-data" / "ground-truth" / "Peripheral-bones" / f"{sub_id}.nii.gz"
         vertebrae_path = dataset_root / "imaging-data" / "ground-truth" / "Vertebrae" / f"{sub_id}.nii.gz"
         ribs_path = dataset_root / "imaging-data" / "ground-truth" / "Ribs" / f"{sub_id}.nii.gz"

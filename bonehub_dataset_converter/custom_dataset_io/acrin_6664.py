@@ -6,7 +6,7 @@ Dataset link: https://doi.org/10.7937/K9/TCIA.2015.NWTESAY1
 from pathlib import Path
 
 from .. import BaseDatasetIO, DataSource
-from ..utils import get_dicom_subject_metadata, export_image
+from ..utils import get_dicom_subject_metadata, export_image_monai
 from bonehub_data_schema import SubjectInfo, DatasetInfo
 
 from . import MAX_SUBJECTS_FOR_TESTING
@@ -82,4 +82,4 @@ def read_dataset(dataset_root: Path) -> list[DataSource]:
 
 
 def _export_image(data: DataSource, output_file_path: Path):
-    export_image(data.img_path, output_file_path)
+    export_image_monai(data.img_path, output_file_path)

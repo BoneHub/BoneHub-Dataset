@@ -9,7 +9,7 @@ from bonehub_data_schema import SubjectInfo, DatasetInfo
 from bonehub_data_schema import BoneLabelMap as BLM
 
 from .. import BaseDatasetIO, DataSource
-from ..utils import get_dicom_subject_metadata, export_image, export_dicom_segmentation
+from ..utils import get_dicom_subject_metadata, export_image_monai, export_dicom_segmentation
 
 from . import MAX_SUBJECTS_FOR_TESTING
 
@@ -109,7 +109,7 @@ def read_dataset(dataset_root: Path) -> list[DataSource]:
 
 
 def _export_image(data: DataSource, output_file_path: Path):
-    export_image(data.img_path, output_file_path)
+    export_image_monai(data.img_path, output_file_path)
 
 
 def export_segmentation(data: DataSource, output_file_path: Path):
