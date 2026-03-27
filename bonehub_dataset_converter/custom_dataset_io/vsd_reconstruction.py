@@ -213,7 +213,7 @@ def read_dataset(dataset_root: Path) -> list[DataSource]:
 
         data = DataSource(
             img_path=sub,
-            segmentation_path=dataset_root / "labelsTr" / sub.name.replace("_0000", ""),
+            segmentation_path=[dataset_root / "labelsTr" / sub.name.replace("_0000", "")],
             mesh_path=list((dataset_root / "meshes" / sub.name.replace("_0000.nii.gz", "")).glob("*.stl")),
             subject_info=SubjectInfo(
                 source_subject_path=metadata["source_subject"],
@@ -236,7 +236,7 @@ def export_image(data: DataSource, output_file_path: Path):
 
 
 def export_segmentation(data: DataSource, output_file_path: Path):
-    export_nii_segmentation(data.segmentation_path, output_file_path, label_mapping)
+    export_nii_segmentation(data.segmentation_path, output_file_path, [label_mapping])
 
 
 def export_mesh(data: DataSource, output_dir_path: Path):

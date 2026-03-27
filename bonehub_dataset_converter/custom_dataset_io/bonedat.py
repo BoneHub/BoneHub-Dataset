@@ -13,6 +13,15 @@ from ..utils import export_nii_segmentation
 
 from . import MAX_SUBJECTS_FOR_TESTING
 
+label_mapping = {
+    0: BLM.BACKGROUND.value,
+    1: BLM.HIP_RIGHT.value,
+    2: BLM.HIP_LEFT.value,
+    3: BLM.SACRUM.value,
+    4: BLM.VERTEBRA_L5.value,
+    5: BLM.VERTEBRA_L4.value,
+}
+
 
 class BoneDat(BaseDatasetIO):
     """Data reader for BoneDat dataset.
@@ -32,15 +41,6 @@ class BoneDat(BaseDatasetIO):
         │   │   │  ├── mask.nii.gz
         │   │   │  └── masked.nii.gz
     """
-
-    label_mapping = {
-        0: BLM.BACKGROUND.value,
-        1: BLM.HIP_RIGHT.value,
-        2: BLM.HIP_LEFT.value,
-        3: BLM.SACRUM.value,
-        4: BLM.VERTEBRA_L5.value,
-        5: BLM.VERTEBRA_L4.value,
-    }
 
     def __init__(self, dataset_root: Path):
         dataset_info = DatasetInfo(
@@ -73,7 +73,7 @@ def read_dataset(dataset_root: Path) -> list[DataSource]:
 
         data = DataSource(
             img_path=image_path,
-            segmentation_path=segmentation_path,
+            segmentation_path=[segmentation_path],
             subject_info=SubjectInfo(
                 source_subject_path=subject_dir.name,
                 age=int(metadata["CT date"].iloc[0]) - int(metadata["born"].iloc[0]),
@@ -96,4 +96,4 @@ def export_image(data: DataSource, output_file_path: Path):
 
 
 def export_segmentation(data: DataSource, output_file_path: Path):
-    export_nii_segmentation(data.segmentation_path, output_file_path, BoneDat.label_mapping)
+    export_nii_segmentation(data.segmentation_path, output_file_path, [label_mapping])

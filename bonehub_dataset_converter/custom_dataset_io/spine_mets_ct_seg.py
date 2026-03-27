@@ -13,6 +13,33 @@ from ..utils import get_dicom_subject_metadata, export_image_monai, export_dicom
 
 from . import MAX_SUBJECTS_FOR_TESTING
 
+label_mapping = {
+    "C1 vertebra": BLM.VERTEBRA_C1.value,
+    "C2 vertebra": BLM.VERTEBRA_C2.value,
+    "C3 vertebra": BLM.VERTEBRA_C3.value,
+    "C4 vertebra": BLM.VERTEBRA_C4.value,
+    "C5 vertebra": BLM.VERTEBRA_C5.value,
+    "C6 vertebra": BLM.VERTEBRA_C6.value,
+    "C7 vertebra": BLM.VERTEBRA_C7.value,
+    "T1 vertebra": BLM.VERTEBRA_T1.value,
+    "T2 vertebra": BLM.VERTEBRA_T2.value,
+    "T3 vertebra": BLM.VERTEBRA_T3.value,
+    "T4 vertebra": BLM.VERTEBRA_T4.value,
+    "T5 vertebra": BLM.VERTEBRA_T5.value,
+    "T6 vertebra": BLM.VERTEBRA_T6.value,
+    "T7 vertebra": BLM.VERTEBRA_T7.value,
+    "T8 vertebra": BLM.VERTEBRA_T8.value,
+    "T9 vertebra": BLM.VERTEBRA_T9.value,
+    "T10 vertebra": BLM.VERTEBRA_T10.value,
+    "T11 vertebra": BLM.VERTEBRA_T11.value,
+    "T12 vertebra": BLM.VERTEBRA_T12.value,
+    "L1 vertebra": BLM.VERTEBRA_L1.value,
+    "L2 vertebra": BLM.VERTEBRA_L2.value,
+    "L3 vertebra": BLM.VERTEBRA_L3.value,
+    "L4 vertebra": BLM.VERTEBRA_L4.value,
+    "L5 vertebra": BLM.VERTEBRA_L5.value,
+}
+
 
 class SpineMetsCTSeg(BaseDatasetIO):
     """Data reader for TCIA Spine-Mets-CT-SEG dataset.
@@ -31,33 +58,6 @@ class SpineMetsCTSeg(BaseDatasetIO):
                 │               1-002.dcm
                 │               1-003.dcm
     """
-
-    label_map = {
-        "C1 vertebra": BLM.VERTEBRA_C1.value,
-        "C2 vertebra": BLM.VERTEBRA_C2.value,
-        "C3 vertebra": BLM.VERTEBRA_C3.value,
-        "C4 vertebra": BLM.VERTEBRA_C4.value,
-        "C5 vertebra": BLM.VERTEBRA_C5.value,
-        "C6 vertebra": BLM.VERTEBRA_C6.value,
-        "C7 vertebra": BLM.VERTEBRA_C7.value,
-        "T1 vertebra": BLM.VERTEBRA_T1.value,
-        "T2 vertebra": BLM.VERTEBRA_T2.value,
-        "T3 vertebra": BLM.VERTEBRA_T3.value,
-        "T4 vertebra": BLM.VERTEBRA_T4.value,
-        "T5 vertebra": BLM.VERTEBRA_T5.value,
-        "T6 vertebra": BLM.VERTEBRA_T6.value,
-        "T7 vertebra": BLM.VERTEBRA_T7.value,
-        "T8 vertebra": BLM.VERTEBRA_T8.value,
-        "T9 vertebra": BLM.VERTEBRA_T9.value,
-        "T10 vertebra": BLM.VERTEBRA_T10.value,
-        "T11 vertebra": BLM.VERTEBRA_T11.value,
-        "T12 vertebra": BLM.VERTEBRA_T12.value,
-        "L1 vertebra": BLM.VERTEBRA_L1.value,
-        "L2 vertebra": BLM.VERTEBRA_L2.value,
-        "L3 vertebra": BLM.VERTEBRA_L3.value,
-        "L4 vertebra": BLM.VERTEBRA_L4.value,
-        "L5 vertebra": BLM.VERTEBRA_L5.value,
-    }
 
     def __init__(self, dataset_root: Path):
         dataset_info = DatasetInfo(
@@ -90,7 +90,7 @@ def read_dataset(dataset_root: Path) -> list[DataSource]:
         subject_metadata = get_dicom_subject_metadata(str(dicom_image_dir))
         data = DataSource(
             img_path=dicom_image_dir,
-            segmentation_path=dicom_label_file,
+            segmentation_path=[dicom_label_file],
             subject_info=SubjectInfo(
                 source_subject_path=case_id,
                 age=subject_metadata["age"],
@@ -113,4 +113,4 @@ def _export_image(data: DataSource, output_file_path: Path):
 
 
 def export_segmentation(data: DataSource, output_file_path: Path):
-    export_dicom_segmentation(data.img_path, data.segmentation_path, output_file_path, SpineMetsCTSeg.label_map)
+    export_dicom_segmentation(data.img_path, data.segmentation_path[0], output_file_path, label_mapping)
