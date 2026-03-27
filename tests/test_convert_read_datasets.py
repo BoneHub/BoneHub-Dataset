@@ -11,7 +11,6 @@ import bonehub_dataset_converter.custom_dataset_io as custom_dataset_io
 
 
 _BONEHUB_DATASET_ROOT = Path("./tests/dummy_bonehub_dataset")
-_VERBOSE = True
 
 
 # @unittest.skip("")
@@ -20,9 +19,7 @@ class TestBoneDat(unittest.TestCase):
 
         public_datasets_root = Path("Z:/BoneHub/Public_Datasets/124 BoneDat/BoneDat")
         public_dataset = custom_dataset_io.BoneDat(public_datasets_root)
-        public_dataset.export_to_bonehub_format(
-            output_root=_BONEHUB_DATASET_ROOT, output_dataset_id=1, overwrite=True, verbose=_VERBOSE
-        )
+        public_dataset.export_to_bonehub_format(output_root=_BONEHUB_DATASET_ROOT, output_dataset_id=1, overwrite=True)
 
     def test_read(self):
         dataset = BoneHubDatasetIO(_BONEHUB_DATASET_ROOT, dataset_id=1)
@@ -38,9 +35,7 @@ class TestKits2023(unittest.TestCase):
     def test_convert(self):
         public_datasets_root = Path("Z:/BoneHub/Public_Datasets/073 kits23")
         public_dataset = custom_dataset_io.KiTS2023(public_datasets_root)
-        public_dataset.export_to_bonehub_format(
-            output_root=_BONEHUB_DATASET_ROOT, output_dataset_id=2, overwrite=True, verbose=_VERBOSE
-        )
+        public_dataset.export_to_bonehub_format(output_root=_BONEHUB_DATASET_ROOT, output_dataset_id=2, overwrite=True)
 
     def test_read(self):
         dataset = BoneHubDatasetIO(_BONEHUB_DATASET_ROOT, dataset_id=2)
@@ -56,9 +51,7 @@ class TestSpineMetsCTSeg(unittest.TestCase):
     def test_convert(self):
         public_datasets_root = Path("Z:/BoneHub/Public_Datasets/019 TCIA Spine-Mets-CT-SEG")
         public_dataset = custom_dataset_io.SpineMetsCTSeg(public_datasets_root)
-        public_dataset.export_to_bonehub_format(
-            output_root=_BONEHUB_DATASET_ROOT, output_dataset_id=3, overwrite=True, verbose=_VERBOSE
-        )
+        public_dataset.export_to_bonehub_format(output_root=_BONEHUB_DATASET_ROOT, output_dataset_id=3, overwrite=True)
 
     def test_read(self):
         dataset = BoneHubDatasetIO(_BONEHUB_DATASET_ROOT, dataset_id=3)
@@ -74,9 +67,7 @@ class TestACRIN6664(unittest.TestCase):
     def test_convert(self):
         public_datasets_root = Path("Z:/BoneHub/Public_Datasets/070 TCIA CT COLONOGRAPHY ACRIN 6664")
         public_dataset = custom_dataset_io.ACRIN6664(public_datasets_root)
-        public_dataset.export_to_bonehub_format(
-            output_root=_BONEHUB_DATASET_ROOT, output_dataset_id=4, overwrite=True, verbose=_VERBOSE
-        )
+        public_dataset.export_to_bonehub_format(output_root=_BONEHUB_DATASET_ROOT, output_dataset_id=4, overwrite=True)
 
     def test_read(self):
         dataset = BoneHubDatasetIO(_BONEHUB_DATASET_ROOT, dataset_id=4)
@@ -95,9 +86,7 @@ class TestVSDReconstruction(unittest.TestCase):
     def test_convert(self):
         data_root = Path("Z:/BoneHub/Public_Datasets/036 VSDFullBodyBoneReconstruction/Hamid_processed")
         public_dataset = custom_dataset_io.VSDReconstruction(data_root)
-        public_dataset.export_to_bonehub_format(
-            output_root=_BONEHUB_DATASET_ROOT, output_dataset_id=5, overwrite=True, verbose=_VERBOSE
-        )
+        public_dataset.export_to_bonehub_format(output_root=_BONEHUB_DATASET_ROOT, output_dataset_id=5, overwrite=True)
 
     def test_read(self):
         dataset = BoneHubDatasetIO(_BONEHUB_DATASET_ROOT, dataset_id=5)
@@ -113,9 +102,7 @@ class TestEnhancePET(unittest.TestCase):
     def test_convert(self):
         data_root = Path("Z:/BoneHub/Public_Datasets/134 enhance-pet-1_6k")
         public_dataset = custom_dataset_io.EnhancePET(data_root)
-        public_dataset.export_to_bonehub_format(
-            output_root=_BONEHUB_DATASET_ROOT, output_dataset_id=6, overwrite=True, verbose=_VERBOSE
-        )
+        public_dataset.export_to_bonehub_format(output_root=_BONEHUB_DATASET_ROOT, output_dataset_id=6, overwrite=True)
 
     def test_read(self):
         dataset = BoneHubDatasetIO(_BONEHUB_DATASET_ROOT, dataset_id=6)
@@ -131,9 +118,7 @@ class TestTotalSegmentatorCT(unittest.TestCase):
     def test_convert(self):
         data_root = Path("Z:/BoneHub/Public_Datasets/027 Totalsegmentator/raw_data")
         public_dataset = custom_dataset_io.TotalSegmentatorCT(data_root)
-        public_dataset.export_to_bonehub_format(
-            output_root=_BONEHUB_DATASET_ROOT, output_dataset_id=7, overwrite=True, verbose=_VERBOSE
-        )
+        public_dataset.export_to_bonehub_format(output_root=_BONEHUB_DATASET_ROOT, output_dataset_id=7, overwrite=True)
 
     def test_read(self):
         dataset = BoneHubDatasetIO(_BONEHUB_DATASET_ROOT, dataset_id=7)

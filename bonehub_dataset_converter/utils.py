@@ -45,22 +45,17 @@ def export_image_monai(input_image_path: Path, output_image_path: Path):
 
 
 def export_nii_segmentation(
-    input_label_paths: Path | list[Path],
+    input_label_paths: list[Path],
     output_label_path: Path,
-    label_mappings: dict | list[dict],
+    label_mappings: list[dict],
 ):
     """
     Converts one or more NIfTI segmentation files to BoneHub standardized labels and saves the result.
-    input_label_paths: Path (or list of Paths) to the original label file(s) in NIfTI format.
+    input_label_paths: list of Paths to the original label file(s) in NIfTI format.
     output_label_path: Path to save the combined label file ending with `.nii.gz`.
-    label_mappings: Dictionary (or list of dictionaries) mapping original labels to BoneHub labels.
+    label_mappings: list of dictionaries mapping original labels to BoneHub labels.
                     When multiple files are given, later files take priority over earlier ones in case of overlapping voxels.
     """
-    if isinstance(input_label_paths, Path):
-        input_label_paths = [input_label_paths]
-    if isinstance(label_mappings, dict):
-        label_mappings = [label_mappings]
-
     if len(input_label_paths) != len(label_mappings):
         raise ValueError("The number of input label paths must match the number of label mappings.")
 
