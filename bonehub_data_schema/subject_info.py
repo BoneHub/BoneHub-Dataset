@@ -24,11 +24,13 @@ class SubjectInfo(BaseModel):
     weight: float | None = Field(None, description="Weight of the subject in kg")
     height: float | None = Field(None, description="Height of the subject in cm")
     bmi: float | None = Field(None, description="Body Mass Index of the subject")
+    vital_status: str | None = Field(None, description="Vital status of the subject (e.g., alive, deceased)")
     imaging_modality: str | None = Field(None, description="Imaging modality used (e.g., CT, MRI)")
     image: bool = Field(..., description="Availability value for the image (`true` or `false`)")
     segmentation: dict | None = Field(None, description="Dictionary mapping LabelMap labels to availability values")
     mesh: dict | None = Field(None, description="Dictionary mapping LabelMap labels to availability values")
     nurbs: dict | None = Field(None, description="Dictionary mapping LabelMap labels to availability values")
+    remarks: str | None = Field(None, description="Any additional remarks or notes about the subject")
 
     model_config = ConfigDict(validate_assignment=True, strict=True)
 

@@ -221,6 +221,7 @@ def read_dataset(dataset_root: Path) -> list[DataSource]:
                 gender=metadata["subjectSnapshot"]["gender"]["name"],
                 height=height,
                 weight=weight,
+                vital_status="postmortem",
                 imaging_modality="CT",
                 image=True,
             ),

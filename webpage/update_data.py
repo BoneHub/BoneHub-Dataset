@@ -28,11 +28,13 @@ SUBJECT_KEY_MAPPINGS = {
     "weight": "Weight (kg)",
     "height": "Height (cm)",
     "bmi": "BMI",
+    "vital_status": "Vital Status",
     "imaging_modality": "Imaging Modality",
     "image": "Image Available",
     "segmentation": "Segmentation Available",
     "mesh": "Mesh Available",
     "nurbs": "NURBS Available",
+    "remarks": "Remarks",
 }
 
 DATASET_KEY_MAPPINGS = {
