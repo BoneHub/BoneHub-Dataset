@@ -243,9 +243,9 @@ def export_mesh(data: DataSource, output_dir_path: Path):
     for mesh_file in data.mesh_path:
         os.makedirs(output_dir_path, exist_ok=True)
         mesh_name = mesh_file.stem
-        try:
-            label_name = mesh_label_mapping[mesh_name]
-            output_mesh_path = output_dir_path / f"{output_dir_path.name}_{label_name}.stl"
-            shutil.copyfile(str(mesh_file), str(output_mesh_path))
-        except KeyError:
+        if mesh_name not in mesh_label_mapping:
             print(f"Warning: Mesh file '{mesh_file}' does not match any known label and will be skipped.")
+            continue
+        label_name = mesh_label_mapping[mesh_name]
+        output_mesh_path = output_dir_path / f"{output_dir_path.name}_{label_name}.stl"
+        shutil.copyfile(str(mesh_file), str(output_mesh_path))
