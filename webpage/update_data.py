@@ -3,6 +3,7 @@
 Usage::
 
     python webpage/update_data.py <dataset_root>
+    python webpage/update_data.py <dataset_root> --exclude-dataset-ids 3 7 12
 
 The script scans all ``Dataset_info_*.json`` and ``Subject_info_*.json`` files under the given
 dataset root directory and writes a JavaScript array consumed by the static webpage.
@@ -52,13 +53,16 @@ def _format_structures(structures: dict | None) -> str:
     return "; ".join(f"{label}" for label, value in sorted(structures.items()))
 
 
-def _collect_data(dataset_root: Path) -> tuple[list[dict], list[dict]]:
+def _collect_data(dataset_root: Path, excluded_dataset_ids: set[int] | None = None) -> tuple[list[dict], list[dict]]:
     subject_rows: list[dict] = []
     dataset_rows: list[dict] = []
+    excluded_dataset_ids = excluded_dataset_ids or set()
 
     for dataset_id in dataset_root.glob("*"):
         if dataset_id.is_dir() and dataset_id.name.startswith("Dataset_"):
             dataset_id = int(dataset_id.name.split("_")[1])
+            if dataset_id in excluded_dataset_ids:
+                continue
             dataset_io = BoneHubDatasetIO(dataset_root, dataset_id)
             dataset_info = dataset_io.dataset_info
             subject_info = dataset_io.subject_info
@@ -94,13 +98,20 @@ def _write_data_js(dataset_rows: list[dict], subject_rows: list[dict]) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser(description="Generate webpage/data.js from BoneHub dataset files.")
     parser.add_argument("dataset_root", type=Path, help="Root directory containing the BoneHub Dataset_* folders.")
+    parser.add_argument(
+        "--exclude-dataset-ids",
+        nargs="*",
+        type=int,
+        default=(),
+        help="Dataset IDs to exclude from the generated data.js output.",
+    )
     args = parser.parse_args()
 
     dataset_root = args.dataset_root.resolve()
     if not dataset_root.is_dir():
         raise FileNotFoundError(f"Dataset root directory does not exist: {dataset_root}")
 
-    dataset_rows, subject_rows = _collect_data(dataset_root)
+    dataset_rows, subject_rows = _collect_data(dataset_root, excluded_dataset_ids=set(args.exclude_dataset_ids))
     _write_data_js(dataset_rows, subject_rows)
 
     print(f"Generated {OUTPUT_PATH}")
