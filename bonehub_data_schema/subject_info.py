@@ -32,7 +32,7 @@ class SubjectInfo(BaseModel):
     nurbs: dict | None = Field(None, description="Dictionary mapping LabelMap labels to availability values")
     remarks: str | None = Field(None, description="Any additional remarks or notes about the subject")
 
-    model_config = ConfigDict(validate_assignment=True, strict=True)
+    model_config = ConfigDict(strict=True, extra="forbid", validate_assignment=True, arbitrary_types_allowed=False)
 
     @field_validator("gender")
     @classmethod
