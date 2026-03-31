@@ -40,7 +40,7 @@ def export_image_monai(input_image_path: Path, output_image_path: Path):
     saved_file = temp_folder / (Path(input_image_path).name)
     if not str(saved_file).endswith(".nii.gz"):
         saved_file = saved_file.with_suffix(".nii.gz")
-    shutil.copyfile(saved_file, output_image_path)
+    shutil.move(saved_file, output_image_path)
     shutil.rmtree(temp_folder, ignore_errors=True)
 
 
@@ -144,8 +144,15 @@ def get_dicom_subject_metadata(dicom_folder: str) -> dict:
     if age:
         age = "".join(filter(str.isdigit, age))
         age = int(age)
-
+    else:
+        age = None
     gender = getattr(ds, "PatientSex", None)
+    if gender:
+        gender = gender.upper()
+        if gender not in ["M", "F", "O"]:
+            print(f"Warning: Unrecognized gender value '{gender}' in DICOM data folder '{dicom_folder}'. Setting gender to None.")
+            gender = None
+
     modality = getattr(ds, "Modality", None)
 
     return {
