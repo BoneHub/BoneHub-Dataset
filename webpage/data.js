@@ -1,6 +1,6 @@
 // Auto-generated from Dataset_info and Subject_info JSON files
 // Do not edit manually - run webpage/update_data.py instead
-// Last updated: 2026-04-01 12:09:16
+// Last updated: 2026-04-01 13:53:55
 
 const datasetsData = [
   {
@@ -67651,7 +67651,7 @@ const subjectsData = [
     "Vital Status": null,
     "Imaging Modality": "CT",
     "Image Available": true,
-    "Segmentation Available": "",
+    "Segmentation Available": "HIP_LEFT; HIP_RIGHT; SACRUM; VERTEBRAE_LUMBAR",
     "Mesh Available": "",
     "NURBS Available": "",
     "Remarks": "Metal artifact present"
@@ -67667,7 +67667,7 @@ const subjectsData = [
     "Vital Status": null,
     "Imaging Modality": "CT",
     "Image Available": true,
-    "Segmentation Available": "",
+    "Segmentation Available": "HIP_LEFT; HIP_RIGHT; SACRUM; VERTEBRAE_LUMBAR",
     "Mesh Available": "",
     "NURBS Available": "",
     "Remarks": "Metal artifact present"
@@ -67683,7 +67683,7 @@ const subjectsData = [
     "Vital Status": null,
     "Imaging Modality": "CT",
     "Image Available": true,
-    "Segmentation Available": "",
+    "Segmentation Available": "HIP_LEFT; HIP_RIGHT; SACRUM; VERTEBRAE_LUMBAR",
     "Mesh Available": "",
     "NURBS Available": "",
     "Remarks": "Metal artifact present"
@@ -67699,7 +67699,7 @@ const subjectsData = [
     "Vital Status": null,
     "Imaging Modality": "CT",
     "Image Available": true,
-    "Segmentation Available": "",
+    "Segmentation Available": "HIP_LEFT; HIP_RIGHT; SACRUM; VERTEBRAE_LUMBAR",
     "Mesh Available": "",
     "NURBS Available": "",
     "Remarks": "Metal artifact present"
@@ -67715,7 +67715,7 @@ const subjectsData = [
     "Vital Status": null,
     "Imaging Modality": "CT",
     "Image Available": true,
-    "Segmentation Available": "",
+    "Segmentation Available": "HIP_LEFT; HIP_RIGHT; SACRUM; VERTEBRAE_LUMBAR",
     "Mesh Available": "",
     "NURBS Available": "",
     "Remarks": "Metal artifact present"
@@ -67731,7 +67731,7 @@ const subjectsData = [
     "Vital Status": null,
     "Imaging Modality": "CT",
     "Image Available": true,
-    "Segmentation Available": "",
+    "Segmentation Available": "HIP_LEFT; HIP_RIGHT; SACRUM; VERTEBRAE_LUMBAR",
     "Mesh Available": "",
     "NURBS Available": "",
     "Remarks": "Metal artifact present"
@@ -67747,7 +67747,7 @@ const subjectsData = [
     "Vital Status": null,
     "Imaging Modality": "CT",
     "Image Available": true,
-    "Segmentation Available": "",
+    "Segmentation Available": "HIP_LEFT; HIP_RIGHT; SACRUM; VERTEBRAE_LUMBAR",
     "Mesh Available": "",
     "NURBS Available": "",
     "Remarks": "Metal artifact present"
@@ -67763,7 +67763,7 @@ const subjectsData = [
     "Vital Status": null,
     "Imaging Modality": "CT",
     "Image Available": true,
-    "Segmentation Available": "",
+    "Segmentation Available": "HIP_LEFT; HIP_RIGHT; SACRUM; VERTEBRAE_LUMBAR",
     "Mesh Available": "",
     "NURBS Available": "",
     "Remarks": "Metal artifact present"
@@ -67779,7 +67779,7 @@ const subjectsData = [
     "Vital Status": null,
     "Imaging Modality": "CT",
     "Image Available": true,
-    "Segmentation Available": "",
+    "Segmentation Available": "HIP_LEFT; HIP_RIGHT; SACRUM; VERTEBRAE_LUMBAR",
     "Mesh Available": "",
     "NURBS Available": "",
     "Remarks": "Metal artifact present"
@@ -67795,7 +67795,7 @@ const subjectsData = [
     "Vital Status": null,
     "Imaging Modality": "CT",
     "Image Available": true,
-    "Segmentation Available": "",
+    "Segmentation Available": "HIP_LEFT; HIP_RIGHT; SACRUM; VERTEBRAE_LUMBAR",
     "Mesh Available": "",
     "NURBS Available": "",
     "Remarks": "Metal artifact present"
@@ -67811,7 +67811,7 @@ const subjectsData = [
     "Vital Status": null,
     "Imaging Modality": "CT",
     "Image Available": true,
-    "Segmentation Available": "",
+    "Segmentation Available": "HIP_LEFT; HIP_RIGHT; SACRUM; VERTEBRAE_LUMBAR",
     "Mesh Available": "",
     "NURBS Available": "",
     "Remarks": "Metal artifact present"
@@ -67827,7 +67827,7 @@ const subjectsData = [
     "Vital Status": null,
     "Imaging Modality": "CT",
     "Image Available": true,
-    "Segmentation Available": "",
+    "Segmentation Available": "HIP_LEFT; HIP_RIGHT; SACRUM; VERTEBRAE_LUMBAR",
     "Mesh Available": "",
     "NURBS Available": "",
     "Remarks": "Metal artifact present"
@@ -67843,7 +67843,7 @@ const subjectsData = [
     "Vital Status": null,
     "Imaging Modality": "CT",
     "Image Available": true,
-    "Segmentation Available": "",
+    "Segmentation Available": "HIP_LEFT; HIP_RIGHT; SACRUM; VERTEBRAE_LUMBAR",
     "Mesh Available": "",
     "NURBS Available": "",
     "Remarks": "Metal artifact present"
@@ -67859,7 +67859,7 @@ const subjectsData = [
     "Vital Status": null,
     "Imaging Modality": "CT",
     "Image Available": true,
-    "Segmentation Available": "",
+    "Segmentation Available": "HIP_LEFT; HIP_RIGHT; SACRUM; VERTEBRAE_LUMBAR",
     "Mesh Available": "",
     "NURBS Available": "",
     "Remarks": "Metal artifact present"
