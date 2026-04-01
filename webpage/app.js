@@ -52,6 +52,13 @@ function initializeTableController(config) {
         allColumns: [],
         sortColumn: null,
         sortDirection: 'asc',
+        isPaginated: config.itemLabel === 'subject',
+        pageSize: config.itemLabel === 'subject' ? 200 : 0,
+        currentPage: 1,
+        filterDebounceMs: config.itemLabel === 'subject' ? 120 : 0,
+        filterTimer: null,
+        cellValueCache: new WeakMap(),
+        rowSearchCache: new WeakMap(),
         elements: getTableElements(config)
     };
 
@@ -64,6 +71,7 @@ function initializeTableController(config) {
 
     buildTableStructure(state);
     initializeColumnToggles(state);
+    initializePaginationControls(state);
     renderTable(state);
     setupEventListeners(state);
     updateStickyColumnOffsets(state);
@@ -72,6 +80,7 @@ function initializeTableController(config) {
 }
 
 function getTableElements(config) {
+    const tbody = document.getElementById(config.tableBodyId);
     return {
         searchInput: document.getElementById(config.searchInputId),
         clearButton: document.getElementById(config.clearButtonId),
@@ -82,8 +91,22 @@ function getTableElements(config) {
         columnCheckboxes: document.getElementById(config.columnCheckboxesId),
         headerRow: document.getElementById(config.tableHeaderId),
         filterRow: document.getElementById(config.filterRowId),
-        tbody: document.getElementById(config.tableBodyId)
+        tbody: tbody,
+        tableContainer: tbody ? tbody.closest('.table-container') : null,
+        paginationContainer: null
     };
+}
+
+function initializePaginationControls(state) {
+    if (!state.isPaginated || !state.elements.tableContainer) {
+        return;
+    }
+
+    const paginationContainer = document.createElement('div');
+    paginationContainer.className = 'table-pagination';
+    paginationContainer.setAttribute('aria-label', `${state.itemLabel} pagination`);
+    state.elements.tableContainer.insertAdjacentElement('afterend', paginationContainer);
+    state.elements.paginationContainer = paginationContainer;
 }
 
 function buildTableStructure(state) {
@@ -184,7 +207,7 @@ function setupEventListeners(state) {
 
     if (searchInput) {
         searchInput.addEventListener('input', function() {
-            applyFilters(state);
+            scheduleApplyFilters(state, true);
         });
     }
 
@@ -199,7 +222,7 @@ function setupEventListeners(state) {
             });
 
             state.columnFilters = {};
-            applyFilters(state);
+            applyFilters(state, true);
         });
     }
 
@@ -239,33 +262,58 @@ function handleColumnFilter(state, column, value) {
         state.columnFilters[column] = value.trim();
     }
 
-    applyFilters(state);
+    scheduleApplyFilters(state, true);
 }
 
-function applyFilters(state) {
+function scheduleApplyFilters(state, resetPage) {
+    if (!state.filterDebounceMs) {
+        applyFilters(state, resetPage);
+        return;
+    }
+
+    if (state.filterTimer) {
+        clearTimeout(state.filterTimer);
+    }
+
+    state.filterTimer = setTimeout(function() {
+        applyFilters(state, resetPage);
+    }, state.filterDebounceMs);
+}
+
+function applyFilters(state, resetPage) {
+    if (state.filterTimer) {
+        clearTimeout(state.filterTimer);
+        state.filterTimer = null;
+    }
+
     const searchTerm = state.elements.searchInput ? state.elements.searchInput.value.toLowerCase() : '';
+    const preparedColumnFilters = Object.entries(state.columnFilters).map(([column, filterValue]) => {
+        const numericComparison = isNumericColumn(column) ? parseNumericComparison(filterValue) : null;
+        return {
+            column,
+            filterValue: filterValue.toLowerCase(),
+            numericComparison
+        };
+    });
 
     state.filteredData = state.allData.filter(row => {
-        for (const [column, filterValue] of Object.entries(state.columnFilters)) {
-            const cellValue = formatCellValue(row[column]);
+        for (const { column, filterValue, numericComparison } of preparedColumnFilters) {
+            const cellValue = getCachedCellValue(state, row, column);
 
-            if (isNumericColumn(column)) {
-                const comparison = parseNumericComparison(filterValue);
-                if (comparison) {
-                    if (!applyNumericFilter(cellValue, comparison)) {
-                        return false;
-                    }
-                    continue;
+            if (numericComparison) {
+                if (!applyNumericFilter(cellValue, numericComparison)) {
+                    return false;
                 }
+                continue;
             }
 
-            if (!cellValue.toLowerCase().includes(filterValue.toLowerCase())) {
+            if (!cellValue.includes(filterValue)) {
                 return false;
             }
         }
 
         if (searchTerm) {
-            const rowText = Object.values(row).map(formatCellValue).join(' ').toLowerCase();
+            const rowText = getCachedRowSearchText(state, row);
             if (!rowText.includes(searchTerm)) {
                 return false;
             }
@@ -273,6 +321,10 @@ function applyFilters(state) {
 
         return true;
     });
+
+    if (resetPage && state.isPaginated) {
+        state.currentPage = 1;
+    }
 
     sortFilteredData(state);
     renderTable(state);
@@ -299,10 +351,12 @@ function renderTable(state) {
         return;
     }
 
-    if (state.filteredData.length === 0) {
+    const rowsToRender = getRowsForCurrentPage(state);
+
+    if (rowsToRender.length === 0) {
         showTableMessage(state, state.emptyMessage, state.allColumns.length);
     } else {
-        state.filteredData.forEach(row => {
+        rowsToRender.forEach(row => {
             const tr = document.createElement('tr');
 
             state.allColumns.forEach((column, index) => {
@@ -328,7 +382,84 @@ function renderTable(state) {
     applyColumnVisibility(state);
     updateSortIndicators(state);
     updateStats(state);
+    renderPaginationControls(state);
     updateStickyColumnOffsets(state);
+}
+
+function getRowsForCurrentPage(state) {
+    if (!state.isPaginated) {
+        return state.filteredData;
+    }
+
+    const totalRows = state.filteredData.length;
+    if (totalRows === 0) {
+        return [];
+    }
+
+    const totalPages = Math.max(1, Math.ceil(totalRows / state.pageSize));
+    if (state.currentPage > totalPages) {
+        state.currentPage = totalPages;
+    }
+
+    const startIndex = (state.currentPage - 1) * state.pageSize;
+    const endIndex = Math.min(startIndex + state.pageSize, totalRows);
+    return state.filteredData.slice(startIndex, endIndex);
+}
+
+function renderPaginationControls(state) {
+    const container = state.elements.paginationContainer;
+    if (!state.isPaginated || !container) {
+        return;
+    }
+
+    const totalRows = state.filteredData.length;
+    const totalPages = Math.max(1, Math.ceil(totalRows / state.pageSize));
+    if (state.currentPage > totalPages) {
+        state.currentPage = totalPages;
+    }
+
+    const start = totalRows === 0 ? 0 : (state.currentPage - 1) * state.pageSize + 1;
+    const end = Math.min(state.currentPage * state.pageSize, totalRows);
+
+    container.innerHTML = [
+        `<div class="table-pagination-summary">Rows ${start}-${end} of ${totalRows}</div>`,
+        '<div class="table-pagination-controls">',
+        `  <label for="${state.itemLabel}-page-size">Rows per page</label>`,
+        `  <select id="${state.itemLabel}-page-size">`,
+        `    ${[100, 200, 500, 1000].map(size => `<option value="${size}"${size === state.pageSize ? ' selected' : ''}>${size}</option>`).join('')}`,
+        '  </select>',
+        `  <button type="button" class="btn-secondary table-page-btn" data-action="prev"${state.currentPage <= 1 ? ' disabled' : ''}>Prev</button>`,
+        `  <span class="table-pagination-page">Page ${state.currentPage} / ${totalPages}</span>`,
+        `  <button type="button" class="btn-secondary table-page-btn" data-action="next"${state.currentPage >= totalPages ? ' disabled' : ''}>Next</button>`,
+        '</div>'
+    ].join('');
+
+    const pageSizeSelect = container.querySelector(`#${state.itemLabel}-page-size`);
+    if (pageSizeSelect) {
+        pageSizeSelect.addEventListener('change', function(event) {
+            const nextPageSize = parseInt(event.target.value, 10);
+            if (!Number.isNaN(nextPageSize) && nextPageSize > 0) {
+                state.pageSize = nextPageSize;
+                state.currentPage = 1;
+                renderTable(state);
+            }
+        });
+    }
+
+    Array.from(container.querySelectorAll('.table-page-btn')).forEach(button => {
+        button.addEventListener('click', function(event) {
+            const action = event.target.dataset.action;
+            if (action === 'prev' && state.currentPage > 1) {
+                state.currentPage -= 1;
+                renderTable(state);
+            }
+
+            if (action === 'next' && state.currentPage < totalPages) {
+                state.currentPage += 1;
+                renderTable(state);
+            }
+        });
+    });
 }
 
 function applyColumnVisibility(state) {
@@ -418,6 +549,19 @@ function updateStats(state) {
         return;
     }
 
+    if (state.isPaginated) {
+        const totalFiltered = state.filteredData.length;
+        if (totalFiltered === 0) {
+            countElement.textContent = `Showing 0 of ${state.allData.length} ${state.itemLabelPlural}`;
+            return;
+        }
+
+        const start = (state.currentPage - 1) * state.pageSize + 1;
+        const end = Math.min(state.currentPage * state.pageSize, totalFiltered);
+        countElement.textContent = `Showing ${start}-${end} of ${totalFiltered} filtered (${state.allData.length} total ${state.itemLabelPlural})`;
+        return;
+    }
+
     countElement.textContent = `Showing ${state.filteredData.length} of ${state.allData.length} ${state.itemLabelPlural}`;
 }
 
@@ -501,6 +645,31 @@ function compareValues(a, b, column) {
 
 function formatCellValue(value) {
     return value === null || value === undefined ? '' : String(value);
+}
+
+function getCachedCellValue(state, row, column) {
+    let rowCache = state.cellValueCache.get(row);
+    if (!rowCache) {
+        rowCache = {};
+        state.cellValueCache.set(row, rowCache);
+    }
+
+    if (!(column in rowCache)) {
+        rowCache[column] = formatCellValue(row[column]).toLowerCase();
+    }
+
+    return rowCache[column];
+}
+
+function getCachedRowSearchText(state, row) {
+    let cachedText = state.rowSearchCache.get(row);
+    if (cachedText !== undefined) {
+        return cachedText;
+    }
+
+    cachedText = Object.values(row).map(formatCellValue).join(' ').toLowerCase();
+    state.rowSearchCache.set(row, cachedText);
+    return cachedText;
 }
 
 function isLinkColumn(column) {
