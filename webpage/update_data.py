@@ -3,7 +3,7 @@
 Usage::
 
     python webpage/update_data.py <dataset_root>
-    python webpage/update_data.py <dataset_root> --exclude-dataset-ids 3 7 12
+    python webpage/update_data.py <dataset_root> --exclude-dataset-ids 2 3
 
 The script scans all ``Dataset_info_*.json`` and ``Subject_info_*.json`` files under the given
 dataset root directory and writes a JavaScript array consumed by the static webpage.
