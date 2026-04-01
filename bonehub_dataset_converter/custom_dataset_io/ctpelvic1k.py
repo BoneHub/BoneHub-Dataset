@@ -290,7 +290,9 @@ def read_dataset7(dataset_root: Path) -> list[DataSource]:
     datalist = []
     img_files = list((dataset_root / "CTPelvic1K_dataset7_data (CLINIC-metal)" / "CTPelvic1K_dataset7_data").glob("*.nii.gz"))
     for img_file in img_files:
-        seg_file = dataset_root / "CTPelvic1K_dataset7_mask" / img_file.name.replace("_data", "_mask_4label")
+        seg_file = (
+            dataset_root / "CTPelvic1K_dataset7_mask" / img_file.name.replace("dataset7_", "").replace("_data", "_mask_4label")
+        )
         if not seg_file.exists():
             # print(f"Warning: Segmentation file {seg_file} not found for image {img_file}.")
             seg_file = None
