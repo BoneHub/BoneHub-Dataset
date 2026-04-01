@@ -126,7 +126,7 @@ def read_dataset1(dataset_root: Path) -> list[DataSource]:
             img_path=img_file,
             segmentation_path=[seg_file],
             subject_info=SubjectInfo(
-                source_subject_path=str(img_file),
+                source_subject_path=img_file.as_posix(),
                 imaging_modality="CT",
                 image=True,
             ),
@@ -162,7 +162,7 @@ def read_dataset2(dataset_root: Path) -> list[DataSource]:
             img_path=dicom_dir,
             segmentation_path=[seg_file],
             subject_info=SubjectInfo(
-                source_subject_path=str(dicom_dir),
+                source_subject_path=dicom_dir.as_posix(),
                 age=metadata["age"],
                 gender=metadata["gender"],
                 imaging_modality="CT",
@@ -193,7 +193,7 @@ def read_dataset3(dataset_root: Path) -> list[DataSource]:
             img_path=img_file,
             segmentation_path=[seg_file],
             subject_info=SubjectInfo(
-                source_subject_path=str(img_file),
+                source_subject_path=img_file.as_posix(),
                 imaging_modality="CT",
                 image=True,
             ),
@@ -224,7 +224,7 @@ def read_dataset4(dataset_root: Path) -> list[DataSource]:
             img_path=img_file,
             segmentation_path=[seg_file],
             subject_info=SubjectInfo(
-                source_subject_path=str(img_file),
+                source_subject_path=img_file.as_posix(),
                 # TODO: confirm if this is the correct age field to use
                 # age=int(metadata[sub_id]["age_at_nephrectomy"]),
                 gender=process_gender(metadata[sub_id]["gender"]),
@@ -254,7 +254,7 @@ def read_dataset5(dataset_root: Path) -> list[DataSource]:
             img_path=img_file,
             segmentation_path=[seg_file],
             subject_info=SubjectInfo(
-                source_subject_path=str(img_file),
+                source_subject_path=img_file.as_posix(),
                 imaging_modality="CT",
                 image=True,
             ),
