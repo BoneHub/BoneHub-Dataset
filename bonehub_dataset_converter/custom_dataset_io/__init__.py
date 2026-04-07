@@ -26,6 +26,7 @@ from .enhance_pet import EnhancePET
 from .totalsegmentator_ct import TotalSegmentatorCT
 from .ctpelvic1k import CTPelvic1K
 from .pengwin import PENGWIN
+from .ctpel import CTPEL
 
 __all__ = [
     "KiTS2023",
@@ -37,4 +38,5 @@ __all__ = [
     "TotalSegmentatorCT",
     "CTPelvic1K",
     "PENGWIN",
+    "CTPEL",
 ]
