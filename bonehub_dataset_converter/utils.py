@@ -97,6 +97,7 @@ def export_dicom_segmentation(
     input_label_path: Path,
     output_label_path: Path,
     label_mapping: dict,
+    dicom_segment_key: str = "SegmentLabel",
 ):
     """
     Converts original DICOM labels to BoneHub standardized labels and saves the result.
@@ -104,6 +105,7 @@ def export_dicom_segmentation(
     input_label_path: Path to the original DICOM label file.
     output_label_path: Path to save the converted label file ending with `.nii.gz`.
     label_mapping: Dictionary mapping original labels to BoneHub labels.
+    dicom_segment_key: Key to access the segment label in the DICOM segmentation file. Options: "SegmentLabel" (default) or "SegmentDescription", depending on how the original labels are stored in the DICOM file.
     """
     seg_dcm = pydicom.dcmread(input_label_path)
     seg_reader = pydicom_seg.MultiClassReader()
@@ -114,8 +116,10 @@ def export_dicom_segmentation(
     # Map original labels to BoneHub labels
     seg_array_mapped = np.zeros(shape=seg_array.shape, dtype=np.uint16)
     for orig_label in seg_result.segment_infos.keys():
-        bonehub_label = label_mapping[seg_result.segment_infos[orig_label].SegmentLabel]
-        seg_array_mapped[seg_array == orig_label] = bonehub_label
+        seg_label_name = getattr(seg_result.segment_infos[orig_label], dicom_segment_key, None)
+        if seg_label_name is None:
+            raise ValueError(f"Segment info for label {orig_label} does not contain key '{dicom_segment_key}'.")
+        seg_array_mapped[seg_array == orig_label] = label_mapping[seg_label_name]
 
     seg_image_mapped = sitk.GetImageFromArray(seg_array_mapped)
     seg_image_mapped.CopyInformation(seg_image)
@@ -150,7 +154,9 @@ def get_dicom_subject_metadata(dicom_folder: str) -> dict:
     if gender:
         gender = gender.upper()
         if gender not in ["M", "F", "O"]:
-            print(f"Warning: Unrecognized gender value '{gender}' in DICOM data folder '{dicom_folder}'. Setting gender to None.")
+            print(
+                f"Warning: Unrecognized gender value '{gender}' in DICOM data folder '{dicom_folder}'. Setting gender to None."
+            )
             gender = None
 
     modality = getattr(ds, "Modality", None)
