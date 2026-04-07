@@ -33,13 +33,16 @@ class BoneDat(BaseDatasetIO):
         │   │   ├── original.nii.gz
         │   │   ├── calibration_constants.csv
         │   │   └── metadata.xlsx
+        │   └── ... (other subjects)
         derived/
         │   ├── geometry/
         │   ├── registration/
-        │   ├── segmentation/
-        │   │   ├── subjectid/
-        │   │   │  ├── mask.nii.gz
-        │   │   │  └── masked.nii.gz
+        │   └── segmentation/
+        │       ├── subjectid/
+        │       │  ├── mask.nii.gz
+        │       │  └── masked.nii.gz
+        │       └── ... (other subjects)
+
     """
 
     def __init__(self, dataset_root: Path):

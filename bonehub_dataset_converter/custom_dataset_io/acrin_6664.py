@@ -16,25 +16,22 @@ class ACRIN6664(BaseDatasetIO):
     """Data reader for TCIA CT Colonography with ARCIN 6664 dataset.
 
     Expected structure:
-        root_directory/
-            ├── metadata.csv
-            ├── TCIA-CTC-6-to-9-mm-polyps.xls
-            ├── TCIA-CTC-large-10-mm-polyps.xls
-            ├── TCIA-CTC-no-polyp-found.xls
-            ├── CT COLONOGRAPHY
-                ├── 1.3.6.1.4.1.9328.50.4.0001
-                    ├── 01-01-2000-1-Abdomen24ACRINColoIRB2415-04 Adult-0.4.1
-                        ├── 1.000000-Topo supine  0.6  T20s-.1222
-                            ├── 1-1.dcm
-                            ├── 1-2.dcm
+    root_directory/
+    ├── metadata.csv
+    ├── TCIA-CTC-6-to-9-mm-polyps.xls
+    ├── TCIA-CTC-large-10-mm-polyps.xls
+    ├── TCIA-CTC-no-polyp-found.xls
+    └── CT COLONOGRAPHY
+        ├── 1.3.6.1.4.1.9328.50.4.0001
+        │   └── 01-01-2000-1-Abdomen24ACRINColoIRB2415-04 Adult-0.4.1
+        │       ├── 3.000000-Colosupine  1.0  B30f-4.563
+        │       │    ├── 1-001.dcm
+        │       │    ├── 1-002.dcm
+        │       │    ├── 1-003.dcm
+        │       │    └── ...
+        │       └── ...
+        └── ...
 
-                        ├──2.000000-Topo prone  0.6  T20s-.1224
-                            ├──1-1.dcm
-
-                        ├── 3.000000-Colosupine  1.0  B30f-4.563
-                            ├── 1-001.dcm
-                            ├── 1-002.dcm
-                            ├── 1-003.dcm
 
     """
 
@@ -46,7 +43,7 @@ class ACRIN6664(BaseDatasetIO):
         )
         super().__init__(dataset_root, dataset_info)
         self.custom_data_handlers.read_dataset = read_dataset
-        self.custom_data_handlers.export_image = _export_image
+        self.custom_data_handlers.export_image = export_image
 
 
 def read_dataset(dataset_root: Path) -> list[DataSource]:
@@ -81,5 +78,5 @@ def read_dataset(dataset_root: Path) -> list[DataSource]:
     return datalist
 
 
-def _export_image(data: DataSource, output_file_path: Path):
+def export_image(data: DataSource, output_file_path: Path):
     export_image_monai(data.img_path, output_file_path)

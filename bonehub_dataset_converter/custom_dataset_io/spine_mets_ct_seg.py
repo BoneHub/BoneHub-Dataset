@@ -14,13 +14,6 @@ from ..utils import get_dicom_subject_metadata, export_image_monai, export_dicom
 from . import MAX_SUBJECTS_FOR_TESTING
 
 label_mapping = {
-    "C1 vertebra": BLM.VERTEBRA_C1.value,
-    "C2 vertebra": BLM.VERTEBRA_C2.value,
-    "C3 vertebra": BLM.VERTEBRA_C3.value,
-    "C4 vertebra": BLM.VERTEBRA_C4.value,
-    "C5 vertebra": BLM.VERTEBRA_C5.value,
-    "C6 vertebra": BLM.VERTEBRA_C6.value,
-    "C7 vertebra": BLM.VERTEBRA_C7.value,
     "T1 vertebra": BLM.VERTEBRA_T1.value,
     "T2 vertebra": BLM.VERTEBRA_T2.value,
     "T3 vertebra": BLM.VERTEBRA_T3.value,
@@ -68,7 +61,7 @@ class SpineMetsCTSeg(BaseDatasetIO):
         )
         super().__init__(dataset_root, dataset_info)
         self.custom_data_handlers.read_dataset = read_dataset
-        self.custom_data_handlers.export_image = _export_image
+        self.custom_data_handlers.export_image = export_image
         self.custom_data_handlers.export_segmentation = export_segmentation
 
 
@@ -108,7 +101,7 @@ def read_dataset(dataset_root: Path) -> list[DataSource]:
     return datalist
 
 
-def _export_image(data: DataSource, output_file_path: Path):
+def export_image(data: DataSource, output_file_path: Path):
     export_image_monai(data.img_path, output_file_path)
 
 
