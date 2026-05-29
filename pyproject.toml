@@ -30,5 +30,4 @@ dependencies = [
 packages = [
     "bonehub_data_schema",
     "bonehub_dataset_converter",
-    "bonehub_segmentation",
 ]
