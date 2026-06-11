@@ -75,7 +75,7 @@ class BoneHubDatasetIO:
             subject_info = SubjectInfo(**subject)
             subject_info_list.append(subject_info)
         return subject_info_list
-    
+
     def save_subject_info(self) -> None:
         """Save the subject info list to the corresponding JSON file in the dataset directory."""
         subject_info_path = self.dataset_path / f"Subject_info_{str(self.dataset_id).zfill(DATASET_ZFILL)}.json"
@@ -86,42 +86,26 @@ class BoneHubDatasetIO:
         """Check if all files referenced in the subject_info exist in the dataset directory."""
         for subject in self.subject_info:
             if subject.image:
-                image_path = (
-                    self.dataset_path
-                    / "Image"
-                    / f"{str(subject.dataset_id).zfill(DATASET_ZFILL)}_{str(subject.subject_id).zfill(SUBJECT_ZFILL)}.nii.gz"
-                )
+                image_path = self.get_image_path(subject)
                 if not image_path.exists():
                     print(f"Image file {image_path} does not exist.")
                     return False
             if subject.segmentation:
-                segmentation_path = (
-                    self.dataset_path
-                    / "Segmentation"
-                    / f"{str(subject.dataset_id).zfill(DATASET_ZFILL)}_{str(subject.subject_id).zfill(SUBJECT_ZFILL)}.nii.gz"
-                )
+                segmentation_path = self.get_segmentation_path(subject)
                 if not segmentation_path.exists():
                     print(f"Segmentation file {segmentation_path} does not exist.")
                     return False
             if subject.mesh:
-                for label in subject.mesh:
-                    mesh_path = (
-                        self.dataset_path
-                        / "Mesh"
-                        / f"{str(subject.dataset_id).zfill(DATASET_ZFILL)}_{str(subject.subject_id).zfill(SUBJECT_ZFILL)}"
-                        / f"{str(subject.dataset_id).zfill(DATASET_ZFILL)}_{str(subject.subject_id).zfill(SUBJECT_ZFILL)}_{label}.stl"
-                    )
+                mesh_paths = self.get_mesh_paths(subject)
+                for label in mesh_paths:
+                    mesh_path = mesh_paths[label]
                     if not mesh_path.exists():
                         print(f"Mesh file {mesh_path} does not exist.")
                         return False
             if subject.nurbs:
-                for label in subject.nurbs:
-                    nurbs_path = (
-                        self.dataset_path
-                        / "NURBS"
-                        / f"{str(subject.dataset_id).zfill(DATASET_ZFILL)}_{str(subject.subject_id).zfill(SUBJECT_ZFILL)}"
-                        / f"{str(subject.dataset_id).zfill(DATASET_ZFILL)}_{str(subject.subject_id).zfill(SUBJECT_ZFILL)}_{label}.iges"
-                    )
+                nurbs_paths = self.get_nurbs_paths(subject)
+                for label in nurbs_paths:
+                    nurbs_path = nurbs_paths[label]
                     if not nurbs_path.exists():
                         print(f"NURBS file {nurbs_path} does not exist.")
                         return False
@@ -150,7 +134,7 @@ class BoneHubDatasetIO:
             )
         return None
 
-    def get_mesh_path(self, subject: SubjectInfo) -> Path | None:
+    def get_mesh_paths(self, subject: SubjectInfo) -> dict[Path] | None:
         # TODO: write tests for this function
         if subject.mesh:
             mesh_paths = {}
@@ -163,7 +147,7 @@ class BoneHubDatasetIO:
                 )
             return mesh_paths
 
-    def get_nurbs_path(self, subject: SubjectInfo) -> Path | None:
+    def get_nurbs_paths(self, subject: SubjectInfo) -> dict[Path] | None:
         # TODO: write tests for this function
         if subject.nurbs:
             nurbs_paths = {}
