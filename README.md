@@ -6,6 +6,14 @@
 
 </div>
 
+> 🚀 **What's New**
+>
+> [2026-??] TODO: Make data public <br>
+> [2026-??] TODO: Generate mesh and NURBS models <br>
+> [2026-04] Reaching 5K subjects  <br>
+> [2026-03] Project started
+
+
 # BoneHub Dataset
 
 A Python package for generating the BoneHub Dataset, including data schema, dataset conversion, segmentation, mesh and NURBS generation.
@@ -15,6 +23,7 @@ A Python package for generating the BoneHub Dataset, including data schema, data
 ```bash
 pip install -e .
 ```
+
 
 ## BoneHub Dataset's Data-Structure
 
