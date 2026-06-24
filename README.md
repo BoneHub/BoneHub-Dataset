@@ -25,7 +25,7 @@ pip install -e .
 ```
 
 
-## BoneHub Dataset's Data-Structure
+## Dataset Structure
 
 ```
 BoneHub Dataset/
