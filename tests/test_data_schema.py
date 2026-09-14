@@ -21,7 +21,7 @@ class TestSubjectInfo(unittest.TestCase):
         with self.assertRaises(ValueError):
             subject_info.gender = "male"
         with self.assertRaises(ValueError):
-            subject_info.segmentation = {"FEMUR_LEFT": 3}
+            subject_info.segmentation = {"FEMUR_LEFT": 4}
 
 
 class TestDatasetInfo(unittest.TestCase):
