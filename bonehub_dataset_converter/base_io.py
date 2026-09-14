@@ -7,6 +7,7 @@ import logging
 import nibabel as nib
 from typing import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from tqdm import tqdm
 
 from bonehub_data_schema import DatasetInfo, SubjectInfo, BoneLabelMap
 
@@ -195,7 +196,13 @@ class BaseDatasetIO:
                 for subject_id, data in enumerate(datalist, start=1)
                 if subject_id not in existing_subject_ids
             }
-            for future in as_completed(futures):
+            progress_bar = tqdm(
+                as_completed(futures),
+                total=len(futures),
+                desc=f"Exporting Dataset_{self.dataset_info.dataset_id:03d}",
+                unit="subject",
+            )
+            for future in progress_bar:
                 index = futures[future]
                 subject_info[index] = future.result()
                 with open(subject_info_path, "w") as f:
