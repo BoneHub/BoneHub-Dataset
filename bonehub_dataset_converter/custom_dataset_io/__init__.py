@@ -27,6 +27,7 @@ from .totalsegmentator_ct import TotalSegmentatorCT
 from .ctpelvic1k import CTPelvic1K
 from .pengwin import PENGWIN
 from .ctpel import CTPEL
+from .synthrad2023 import SynthRAD2023
 
 __all__ = [
     "KiTS2023",
@@ -39,4 +40,5 @@ __all__ = [
     "CTPelvic1K",
     "PENGWIN",
     "CTPEL",
+    "SynthRAD2023",
 ]
