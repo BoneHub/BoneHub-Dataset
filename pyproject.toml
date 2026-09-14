@@ -11,24 +11,45 @@ requires-python = ">=3.10"
 authors = [
     {name = "Hamid Alavi"}
 ]
+
+# The base install carries the data schema only: `bonehub_data_schema` needs nothing but
+# pydantic, so downstream projects that merely read or write BoneHub metadata (such as
+# the quality-check server) can depend on this package without pulling in torch, monai,
+# ITK and the rest of the conversion stack. Everything heavier lives in an extra below.
 dependencies = [
+    "pydantic>=2.0",
+]
+
+[project.optional-dependencies]
+# Converting third-party datasets into BoneHub data structure format.
+converter = [
     "numpy==1.26.4",
     "pydicom==2.4.4",
     "pydicom-seg==0.4.1",
     "monai",
-    "torch",
-    "torchvision",
     "nibabel",
     "itk",
     "SimpleITK",
     "pandas",
     "openpyxl",
-    "pydantic",
     "tqdm",
 ]
+# Running the segmentation models.
+segmentation = [
+    "numpy==1.26.4",
+    "monai",
+    "torch",
+    "torchvision",
+    "nibabel",
+    "pyyaml",
+]
+all = [
+    "bonehub-dataset[converter,segmentation]",
+]
 
-[tool.setuptools]
-packages = [
-    "bonehub_data_schema",
-    "bonehub_dataset_converter",
+[tool.setuptools.packages.find]
+include = [
+    "bonehub_data_schema*",
+    "bonehub_dataset_converter*",
+    "bonehub_segmentation*",
 ]
