@@ -18,11 +18,31 @@
 
 A Python package for generating the BoneHub Dataset, including data schema, dataset conversion, segmentation, mesh and NURBS generation.
 
-## Install from source
+## Install
+
+The base install contains **only `bonehub_data_schema`** and its single dependency
+(`pydantic`). Use it when all you need is to read or write BoneHub metadata — the
+label map, `SubjectInfo`, `DatasetInfo` and `BoneHubDatasetIO`:
 
 ```bash
-pip install -e .
+pip install -e .                        # from a local clone
+pip install "bonehub-dataset @ git+https://github.com/BoneHub/BoneHub-Dataset.git"
 ```
+
+The heavier tooling is opt-in, so nothing pulls in torch, monai or ITK unless asked:
+
+```bash
+pip install -e ".[converter]"       # + dataset conversion (monai, pydicom, ITK, pandas, ...)
+pip install -e ".[segmentation]"    # + segmentation models (torch, torchvision, monai, ...)
+pip install -e ".[all]"             # everything
+```
+
+## Related repositories
+
+| Repository | Purpose |
+| --- | --- |
+| [bonehub_dataset_quality_check_server](https://github.com/BoneHub/bonehub_dataset_quality_check_server) | Dockerised server that distributes subjects to reviewers and writes confirmed segmentations back into a dataset folder |
+| [bonehub_dataset_quality_check_3dslicer_extension](https://github.com/BoneHub/bonehub_dataset_quality_check_3dslicer_extension) | 3D Slicer extension reviewers use to fetch, correct and submit segmentations |
 
 
 ## Dataset Structure
