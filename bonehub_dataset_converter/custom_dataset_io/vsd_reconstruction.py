@@ -5,6 +5,8 @@ url: https://doi.org/10.5281/zenodo.8302449
 Note: This scripts works on a processed version of the dataset where:
     - NRRD files for lower extremity are combined for each subject.
     - Segmentation masks are obtained from the high quality meshes provided in this link https://github.com/MCM-Fischer/VSDFullBodyBoneModels
+
+The processed dataset can be found here: https://huggingface.co/datasets/BoneHub/vsd-lower-extremities-seg
 """
 
 import json
@@ -154,18 +156,18 @@ mesh_label_mapping = {
 class VSDReconstruction(BaseDatasetIO):
     """
     Data reader for VSD Full Body Reconstruction dataset.
-    Expexted structure:
+    Expected structure (root: ".../Hamid_processed/vsd-lower-extremities-seg"):
     root_directory/
-    ├── imagesTr/
-    │   ├── 001_0000.nii.gz
-    │   ├── 002_0000.nii.gz
-    │   ├── ...
-    │   └── 030_0000.nii.gz
-    ├── labelsTr/
-    │   ├── 001.nii.gz
-    │   ├── 002.nii.gz
-    │   ├── ...
-    │   └── 030.nii.gz
+    ├── lower_extremity_ct/
+    │   ├── imagesTr/
+    │   │   ├── 001_0000.nii.gz
+    │   │   ├── ...
+    │   │   └── 030_0000.nii.gz
+    │   ├── labelsTr/
+    │   │   ├── 001.nii.gz
+    │   │   ├── ...
+    │   │   └── 030.nii.gz
+    │   └── dataset.json
     ├── meshes/
     │   ├── 001/
     │   │   ├── Sacrum.stl
@@ -181,7 +183,6 @@ class VSDReconstruction(BaseDatasetIO):
     │   ├── 002.json
     │   ├── ...
     │   └── 030.json
-    └── dataset.json
     """
 
     def __init__(self, dataset_root: Path):
@@ -199,7 +200,8 @@ class VSDReconstruction(BaseDatasetIO):
 
 
 def read_dataset(dataset_root: Path) -> list[DataSource]:
-    subjects = sorted(d for d in (dataset_root / "imagesTr").iterdir())[:MAX_SUBJECTS_FOR_TESTING]
+    ct_root = dataset_root / "lower_extremity_ct"
+    subjects = sorted(d for d in (ct_root / "imagesTr").iterdir())[:MAX_SUBJECTS_FOR_TESTING]
     datalist = []
 
     for sub in subjects:
@@ -213,7 +215,7 @@ def read_dataset(dataset_root: Path) -> list[DataSource]:
 
         data = DataSource(
             img_path=sub,
-            segmentation_path=[dataset_root / "labelsTr" / sub.name.replace("_0000", "")],
+            segmentation_path=[ct_root / "labelsTr" / sub.name.replace("_0000", "")],
             mesh_path=list((dataset_root / "meshes" / sub.name.replace("_0000.nii.gz", "")).glob("*.stl")),
             subject_info=SubjectInfo(
                 source_subject_path=metadata["source_subject"],

@@ -84,7 +84,7 @@ class TestACRIN6664(unittest.TestCase):
 # @unittest.skip("")
 class TestVSDReconstruction(unittest.TestCase):
     def test_convert(self):
-        data_root = Path("Z:/BoneHub/Public_Datasets/036 VSDFullBodyBoneReconstruction/Hamid_processed")
+        data_root = Path("Z:/BoneHub/Public_Datasets/036 VSDFullBodyBoneReconstruction/Hamid_processed/vsd-lower-extremities-seg")
         public_dataset = custom_dataset_io.VSDReconstruction(data_root)
         public_dataset.export_to_bonehub_format(output_root=_BONEHUB_DATASET_ROOT, output_dataset_id=5, overwrite=True)
 
