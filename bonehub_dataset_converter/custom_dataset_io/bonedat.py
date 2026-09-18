@@ -15,8 +15,8 @@ from . import MAX_SUBJECTS_FOR_TESTING
 
 label_mapping = {
     0: BLM.BACKGROUND.value,
-    1: BLM.HIP_RIGHT.value,
-    2: BLM.HIP_LEFT.value,
+    1: BLM.HIP_BONE_RIGHT.value,
+    2: BLM.HIP_BONE_LEFT.value,
     3: BLM.SACRUM.value,
     4: BLM.VERTEBRA_L5.value,
     5: BLM.VERTEBRA_L4.value,

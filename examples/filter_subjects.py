@@ -22,10 +22,10 @@ if __name__ == "__main__":
     # find subjects that have segmentation of L4 or L5 lumbar vertebra and tibia
     filtered_subjects = []
     for subject in subjects:
-        if subject.segmentation:
-            segmentations = "; ".join(subject.segmentation)
-            if (("L4" in segmentations) or ("L5" in segmentations)) and ("TIBIA" in segmentations):
-                filtered_subjects.append(subject)
+        # Subject info also lists labels that are not available or failed review; skip those.
+        segmentations = "; ".join(subject.usable_labels("segmentation"))
+        if (("L4" in segmentations) or ("L5" in segmentations)) and ("TIBIA" in segmentations):
+            filtered_subjects.append(subject)
     print(f"Found {len(filtered_subjects)} subjects with both L4 or L5 lumbar vertebra and TIBIA segmentation.")
     for subject in filtered_subjects:
         print(f"Dataset ID: {subject.dataset_id}, Subject ID: {subject.subject_id}")

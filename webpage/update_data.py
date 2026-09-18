@@ -47,10 +47,13 @@ DATASET_KEY_MAPPINGS = {
 }
 
 
-def _format_structures(structures: dict | None) -> str:
-    if not structures:
-        return ""
-    return "; ".join(f"{label}" for label, value in sorted(structures.items()))
+def _format_labels(subject: SubjectInfo, kind: str) -> str:
+    """List the labels a downloader can actually use.
+
+    Subject info also records labels that are not available and ones that failed review;
+    neither belongs in an "Available" column.
+    """
+    return "; ".join(sorted(subject.usable_labels(kind)))
 
 
 def _collect_data(dataset_root: Path, excluded_dataset_ids: set[int] | None = None) -> tuple[list[dict], list[dict]]:
@@ -72,9 +75,9 @@ def _collect_data(dataset_root: Path, excluded_dataset_ids: set[int] | None = No
 
             for subject in subject_info:
                 subject_row = {new_key: getattr(subject, old_key) for old_key, new_key in SUBJECT_KEY_MAPPINGS.items()}
-                subject_row["Segmentation Available"] = _format_structures(subject.segmentation)
-                subject_row["Mesh Available"] = _format_structures(subject.mesh)
-                subject_row["NURBS Available"] = _format_structures(subject.nurbs)
+                subject_row["Segmentation Available"] = _format_labels(subject, "segmentation")
+                subject_row["Mesh Available"] = _format_labels(subject, "mesh")
+                subject_row["NURBS Available"] = _format_labels(subject, "nurbs")
                 subject_rows.append(subject_row)
 
     return dataset_rows, subject_rows

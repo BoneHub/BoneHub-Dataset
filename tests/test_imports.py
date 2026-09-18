@@ -1,6 +1,6 @@
 import unittest
 
-from bonehub_data_schema import BoneLabelMap, SubjectInfo, DatasetInfo, bonehub_to_snomed
+from bonehub_data_schema import BoneLabelMap, SubjectInfo, DatasetInfo, LabelStatus, Origin, bonehub_to_snomed
 
 
 class ImportSmokeTests(unittest.TestCase):
@@ -8,7 +8,7 @@ class ImportSmokeTests(unittest.TestCase):
         # Test that we can import the classes and functions without errors
         dataset_info = DatasetInfo(dataset_id=1, name="Test Dataset")
         subject_info = SubjectInfo(dataset_id=1, subject_id=1, image=False, age=30)
-        subject_info.set_segmentation_value(BoneLabelMap.FEMUR_BOTH.name, 1)
+        subject_info.set_segmentation_value(BoneLabelMap.FEMUR.name, LabelStatus.of(Origin.SOURCE))
 
 
 if __name__ == "__main__":

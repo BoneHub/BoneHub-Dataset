@@ -7,6 +7,11 @@ import pydicom
 import pydicom_seg
 import SimpleITK as sitk
 
+from bonehub_data_schema import LabelStatus, Origin, write_segmentation
+
+# Everything these converters export comes straight from the source dataset.
+FROM_SOURCE = LabelStatus.of(Origin.SOURCE)
+
 
 def export_image_monai(input_image_path: Path, output_image_path: Path):
     """
@@ -48,13 +53,15 @@ def export_nii_segmentation(
     input_label_paths: list[Path],
     output_label_path: Path,
     label_mappings: list[dict],
+    status: LabelStatus | dict[int, LabelStatus] = FROM_SOURCE,
 ):
     """
     Converts one or more NIfTI segmentation files to BoneHub standardized labels and saves the result.
     input_label_paths: list of Paths to the original label file(s) in NIfTI format.
-    output_label_path: Path to save the combined label file ending with `.nii.gz`.
+    output_label_path: Path to save the combined label file; written as `.seg.nrrd`.
     label_mappings: list of dictionaries mapping original labels to BoneHub labels.
                     When multiple files are given, later files take priority over earlier ones in case of overlapping voxels.
+    status: how these segmentations were produced and reviewed, recorded per segment in the file header.
     """
     if len(input_label_paths) != len(label_mappings):
         raise ValueError("The number of input label paths must match the number of label mappings.")
@@ -78,18 +85,16 @@ def export_nii_segmentation(
         array = sitk.GetArrayFromImage(image)
 
         if combined_array is None:
-            combined_array = np.zeros(array.shape, dtype=np.uint16)
+            combined_array = np.zeros(array.shape, dtype=np.int32)
 
-        mapped_array = np.zeros(array.shape, dtype=np.uint16)
+        mapped_array = np.zeros(array.shape, dtype=np.int32)
         for orig_label, bonehub_label in label_mapping.items():
             mapped_array[array == orig_label] = bonehub_label
 
         # Non-zero voxels from this file overwrite the combined array
         combined_array[mapped_array != 0] = mapped_array[mapped_array != 0]
 
-    combined_image = sitk.GetImageFromArray(combined_array)
-    combined_image.CopyInformation(ref_image)
-    sitk.WriteImage(combined_image, str(output_label_path))
+    return write_segmentation(combined_array, ref_image, output_label_path, status)
 
 
 def export_dicom_segmentation(
@@ -98,14 +103,16 @@ def export_dicom_segmentation(
     output_label_path: Path,
     label_mapping: dict,
     dicom_segment_key: str = "SegmentLabel",
+    status: LabelStatus | dict[int, LabelStatus] = FROM_SOURCE,
 ):
     """
     Converts original DICOM labels to BoneHub standardized labels and saves the result.
     input_image_path: Path to the original DICOM image folder.
     input_label_path: Path to the original DICOM label file.
-    output_label_path: Path to save the converted label file ending with `.nii.gz`.
+    output_label_path: Path to save the converted label file; written as `.seg.nrrd`.
     label_mapping: Dictionary mapping original labels to BoneHub labels.
     dicom_segment_key: Key to access the segment label in the DICOM segmentation file. Options: "SegmentLabel" (default) or "SegmentDescription", depending on how the original labels are stored in the DICOM file.
+    status: how these segmentations were produced and reviewed, recorded per segment in the file header.
     """
     seg_dcm = pydicom.dcmread(input_label_path)
     seg_reader = pydicom_seg.MultiClassReader()
@@ -114,7 +121,7 @@ def export_dicom_segmentation(
     seg_array = sitk.GetArrayFromImage(seg_image)
 
     # Map original labels to BoneHub labels
-    seg_array_mapped = np.zeros(shape=seg_array.shape, dtype=np.uint16)
+    seg_array_mapped = np.zeros(shape=seg_array.shape, dtype=np.int32)
     for orig_label in seg_result.segment_infos.keys():
         seg_label_name = getattr(seg_result.segment_infos[orig_label], dicom_segment_key, None)
         if seg_label_name is None:
@@ -137,8 +144,7 @@ def export_dicom_segmentation(
     resampler.SetDefaultPixelValue(0)
     seg_resampled = resampler.Execute(seg_image_mapped)
 
-    # Save as NIfTI
-    sitk.WriteImage(seg_resampled, str(output_label_path) + ".nii.gz")
+    return write_segmentation(sitk.GetArrayFromImage(seg_resampled), seg_resampled, output_label_path, status)
 
 
 def get_dicom_subject_metadata(dicom_folder: str) -> dict:

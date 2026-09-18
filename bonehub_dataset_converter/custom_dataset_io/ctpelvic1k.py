@@ -42,9 +42,9 @@ ACRIN6664_DATASET_PATH = Path(
 label_mapping = {
     0: BLM.BACKGROUND.value,
     1: BLM.SACRUM.value,
-    2: BLM.HIP_LEFT.value,
-    3: BLM.HIP_RIGHT.value,
-    4: BLM.VERTEBRAE_LUMBAR.value,
+    2: BLM.HIP_BONE_LEFT.value,
+    3: BLM.HIP_BONE_RIGHT.value,
+    4: BLM.LUMBAR_SPINE.value,
 }
 
 
@@ -112,7 +112,7 @@ class CTPelvic1K(BaseDatasetIO):
 
 def read_dataset1(dataset_root: Path) -> list[DataSource]:
     datalist = []
-    seg_files = list((dataset_root / "CTPelvic1K_dataset1_mask_mappingback (Multi-Atlas Abdomen)").glob("*.nii.gz"))
+    seg_files = sorted((dataset_root / "CTPelvic1K_dataset1_mask_mappingback (Multi-Atlas Abdomen)").glob("*.nii.gz"))
     img_files = list((BTCV_DATASET_PATH / "Abdomen" / "rawdata" / "RawData" / "Training" / "img").glob("*.nii.gz")) + list(
         (BTCV_DATASET_PATH / "Abdomen" / "rawdata" / "RawData" / "Testing" / "img").glob("*.nii.gz")
     )
@@ -137,7 +137,7 @@ def read_dataset1(dataset_root: Path) -> list[DataSource]:
 
 def read_dataset2(dataset_root: Path) -> list[DataSource]:
     datalist = []
-    seg_files = list(
+    seg_files = sorted(
         (dataset_root / "CTPelvic1K_dataset2_mask_mappingback (TCIA Colonog)" / "CTPelvic1K_dataset2_mask_mappingback").glob(
             "*.nii.gz"
         )
@@ -175,7 +175,7 @@ def read_dataset2(dataset_root: Path) -> list[DataSource]:
 
 def read_dataset3(dataset_root: Path) -> list[DataSource]:
     datalist = []
-    seg_files = list(
+    seg_files = sorted(
         (dataset_root / "CTPelvic1K_dataset3_mask_mappingback (MSD T10 colon)" / "CTPelvic1K_dataset3_mask_mappingback").glob(
             "*.nii.gz"
         )
@@ -204,7 +204,7 @@ def read_dataset3(dataset_root: Path) -> list[DataSource]:
 
 def read_dataset4(dataset_root: Path) -> list[DataSource]:
     datalist = []
-    seg_files = list(
+    seg_files = sorted(
         (dataset_root / "CTPelvic1K_dataset4_mask_mappingback (KiTS 19)" / "CTPelvic1K_dataset4_mask_mappingback").glob(
             "*.nii.gz"
         )
@@ -239,7 +239,7 @@ def read_dataset4(dataset_root: Path) -> list[DataSource]:
 
 def read_dataset5(dataset_root: Path) -> list[DataSource]:
     datalist = []
-    seg_files = list((dataset_root / "CTPelvic1K_dataset5_mask_mappingback (Multi-Atlas  Cervix)").glob("*.nii.gz"))
+    seg_files = sorted((dataset_root / "CTPelvic1K_dataset5_mask_mappingback (Multi-Atlas  Cervix)").glob("*.nii.gz"))
     img_files = list((BTCV_DATASET_PATH / "Cervix" / "cervixrawdata" / "RawData" / "Training" / "img").glob("*.nii.gz")) + list(
         (BTCV_DATASET_PATH / "Cervix" / "cervixrawdata" / "RawData" / "Testing" / "img").glob("*.nii.gz")
     )
@@ -265,7 +265,7 @@ def read_dataset5(dataset_root: Path) -> list[DataSource]:
 
 def read_dataset6(dataset_root: Path) -> list[DataSource]:
     datalist = []
-    img_files = list((dataset_root / "CTPelvic1K_dataset6_data (CLINIC)" / "CTPelvic1K_dataset6_data").glob("*.nii.gz"))
+    img_files = sorted((dataset_root / "CTPelvic1K_dataset6_data (CLINIC)" / "CTPelvic1K_dataset6_data").glob("*.nii.gz"))
     for img_file in img_files:
         seg_file = (
             dataset_root
@@ -288,7 +288,7 @@ def read_dataset6(dataset_root: Path) -> list[DataSource]:
 
 def read_dataset7(dataset_root: Path) -> list[DataSource]:
     datalist = []
-    img_files = list((dataset_root / "CTPelvic1K_dataset7_data (CLINIC-metal)" / "CTPelvic1K_dataset7_data").glob("*.nii.gz"))
+    img_files = sorted((dataset_root / "CTPelvic1K_dataset7_data (CLINIC-metal)" / "CTPelvic1K_dataset7_data").glob("*.nii.gz"))
     for img_file in img_files:
         seg_file = (
             dataset_root / "CTPelvic1K_dataset7_mask" / img_file.name.replace("dataset7_", "").replace("_data", "_mask_4label")

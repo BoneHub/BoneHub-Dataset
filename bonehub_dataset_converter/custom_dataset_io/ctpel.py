@@ -16,8 +16,8 @@ from . import MAX_SUBJECTS_FOR_TESTING
 label_mapping = {
     "Right Femur": BLM.FEMUR_PROXIMAL_RIGHT.value,
     "Left Femur": BLM.FEMUR_PROXIMAL_LEFT.value,
-    "Right Hip": BLM.HIP_RIGHT.value,
-    "Left Hip": BLM.HIP_LEFT.value,
+    "Right Hip": BLM.HIP_BONE_RIGHT.value,
+    "Left Hip": BLM.HIP_BONE_LEFT.value,
     "Sacrum": BLM.SACRUM.value,
 }
 

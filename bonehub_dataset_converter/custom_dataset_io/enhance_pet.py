@@ -73,8 +73,8 @@ label_mapping_vertebrae = {
     23: BLM.VERTEBRA_L4.value,
     24: BLM.VERTEBRA_L5.value,
     25: BLM.VERTEBRA_L6.value,
-    26: BLM.HIP_LEFT.value,
-    27: BLM.HIP_RIGHT.value,
+    26: BLM.HIP_BONE_LEFT.value,
+    27: BLM.HIP_BONE_RIGHT.value,
     28: BLM.SACRUM.value,
 }
 

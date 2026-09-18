@@ -3,342 +3,1779 @@ from enum import Enum, unique
 
 @unique
 class BoneLabelMap(Enum):
-    """Unified bone labels."""
+    """Unified bone labels.
 
-    BACKGROUND = 0  # background label
+    Label values are built from four independent fields, so that adding a new
+    sub-division, tissue, side or bone never forces existing values to move:
 
-    ## axial skeleton
-    # skull
-    SKULL = 1000  # whole skull including cranium and facial bones
-    SKULL_CRANIAL = 1100  # whole cranial only
-    SKULL_FACIAL = 1200  # whole facial bones only
-    SKULL_MANDIBLE = 1201  # mandible bone which is part of facial bones
-    SKULL_MAXILLA = 1202  # maxilla bone which is part of facial bones
+        value = structure * 100000 + part * 1000 + tissue * 10 + side
 
-    # spinal column
-    VERTEBRAE = 2000  # whole vertebral column without sacrum and coccyx
+                 S S S S   P P   T T   S
+                 \_______/  \_/   \_/   |
+                     |       |     |    +-- side    0 = not distinguished / both
+                     |       |     |               1 = left, 2 = right, 3..9 free
+                     |       |     +------- tissue  00 = whole bone substance
+                     |       |                      01 CORTICAL, 02 TRABECULAR,
+                     |       |                      03 MEDULLARY_CAVITY, 04..99 free
+                     |       +------------- part    00 = the whole structure
+                     |                              01..99, see the table below
+                     +--------------------- structure  RSMM, see the blocks below
 
-    VERTEBRAE_CERVICAL = 2100  # whole cervical vertebrae from C1 to C7
-    VERTEBRA_C1 = 2101
-    VERTEBRA_C2 = 2102
-    VERTEBRA_C3 = 2103
-    VERTEBRA_C4 = 2104
-    VERTEBRA_C5 = 2105
-    VERTEBRA_C6 = 2106
-    VERTEBRA_C7 = 2107
-    VERTEBRAE_THORACIC = 2200  # whole thoracic vertebrae from T1 to T12
-    VERTEBRA_T1 = 2201
-    VERTEBRA_T2 = 2202
-    VERTEBRA_T3 = 2203
-    VERTEBRA_T4 = 2204
-    VERTEBRA_T5 = 2205
-    VERTEBRA_T6 = 2206
-    VERTEBRA_T7 = 2207
-    VERTEBRA_T8 = 2208
-    VERTEBRA_T9 = 2209
-    VERTEBRA_T10 = 2210
-    VERTEBRA_T11 = 2211
-    VERTEBRA_T12 = 2212
-    VERTEBRAE_LUMBAR = 2300  # whole lumbar vertebrae from L1 to L5
-    VERTEBRA_L1 = 2301
-    VERTEBRA_L2 = 2302
-    VERTEBRA_L3 = 2303
-    VERTEBRA_L4 = 2304
-    VERTEBRA_L5 = 2305
-    VERTEBRA_L6 = 2306
+    Every value therefore has 9 digits (4 + 2 + 2 + 1), apart from BACKGROUND = 0.
 
-    SACRUM = 2400  # whole sacrum
-    SACRUM_WITHOUT_S1 = 2401  # whole sacrum excluding S1 vertebra
-    VERTEBRA_S1 = 2402  # only S1 vertebra of sacrum
+    Because every facet has its own digits, a voxel never needs to belong to two
+    labels at once: the proximal cortical shell of the left femur is one value,
+    7100_01_01_1 = 710001011, and the whole femur is recoverable as
+    structure_of(v) == 7100.
 
-    # thorax
-    RIBS = 3000  # whole rib cage excluding sternum
-    RIBS_WITH_STERNUM = 3001  # whole rib cage including sternum
-    # The digit after the underscore is the rib number (1-12 from top to bottom).
-    RIB_1_LEFT = 3101
-    RIB_1_RIGHT = 3102
-    RIB_2_LEFT = 3103
-    RIB_2_RIGHT = 3104
-    RIB_3_LEFT = 3105
-    RIB_3_RIGHT = 3106
-    RIB_4_LEFT = 3107
-    RIB_4_RIGHT = 3108
-    RIB_5_LEFT = 3109
-    RIB_5_RIGHT = 3110
-    RIB_6_LEFT = 3111
-    RIB_6_RIGHT = 3112
-    RIB_7_LEFT = 3113
-    RIB_7_RIGHT = 3114
-    RIB_8_LEFT = 3115
-    RIB_8_RIGHT = 3116
-    RIB_9_LEFT = 3117
-    RIB_9_RIGHT = 3118
-    RIB_10_LEFT = 3119
-    RIB_10_RIGHT = 3120
-    RIB_11_LEFT = 3121
-    RIB_11_RIGHT = 3122
-    RIB_12_LEFT = 3123
-    RIB_12_RIGHT = 3124
-    RIB_13_LEFT = 3125
-    RIB_13_RIGHT = 3126
+    structure = R S M M
+        R  region:      1 head, 2 spine, 3 thorax, 4 shoulder+arm, 5 hand,
+                        6 pelvis, 7 leg, 8 foot, 9 whole-body aggregates
+        S  bone family within the region (0 = the region itself)
+        MM member within the family (00 = the family itself)
+    Structures with S = 0 and MM > 0 are groups spanning several families of their
+    region, e.g. PRESACRAL_SPINE and AXIAL_SKELETON.
 
-    STERNUM = 3200  # sternum bone
+    part codes.  A structure's parts always partition it: every voxel of a bone
+    belongs to exactly one of its parts, so a mask labelled by parts still rolls up
+    to the whole bone with structure_of.  Landmarks that would overlap a part
+    (heads, necks, condyles, trochanters, processes, the acetabulum) are therefore
+    deliberately not labels.
+        00        WHOLE
+        01..09    segments along a bone
+                  01 PROXIMAL  02 SHAFT  03 DISTAL        long bones (thirds)
+                  04 BASE      02 SHAFT  05 HEAD          metacarpals, metatarsals, phalanges
+                  06 MEDIAL    02 SHAFT  07 LATERAL       clavicle (thirds)
+                  06 MEDIAL              07 LATERAL       scapula (halves)
+                  08 ANTERIOR  07 LATERAL  09 POSTERIOR   ribs (arcs)
+        10..19    components of a vertebra or of the sternum
+                  10 BODY  11 ARCH                        vertebrae C2 .. S5 (C1 has no body)
+                  12 MANUBRIUM  10 BODY  13 XIPHOID_PROCESS    sternum
+        20..29    the bones that fuse into the hip bone
+                  20 ILIUM  21 ISCHIUM  22 PUBIS
+        30..89    free
+        90..99    project-specific / experimental, never published as canonical
 
-    ## appendicular skeleton
-    # upper extremity
-    UPPER_EXTREMITY_BOTH = 4000  # whole upper extremity (left+right) without scapula and clavicle
-    UPPER_EXTREMITY_LEFT = 4001  # whole upper extremity left without scapula and clavicle
-    UPPER_EXTREMITY_RIGHT = 4002  # whole upper extremity right without scapula and clavicle
+    A part name has exactly one code wherever it is used.  Short tubular bones use
+    BASE / SHAFT / HEAD, the terms their anatomy and fracture classifications use,
+    and ones that do not clash with a phalanx's own PROXIMAL / MIDDLE / DISTAL.
 
-    # clavicle
-    CLAVICLE_BOTH = 4100  # whole clavicle both sides
-    CLAVICLE_LEFT = 4101  # whole clavicle left side
-    CLAVICLE_RIGHT = 4102  # whole clavicle right side
-    CLAVICLE_MEDIAL_LEFT = 4103  # medial part of left clavicle
-    CLAVICLE_MEDIAL_RIGHT = 4104  # medial part of right clavicle
-    CLAVICLE_LATERAL_LEFT = 4105  # lateral part of left clavicle
-    CLAVICLE_LATERAL_RIGHT = 4106  # lateral part of right clavicle
+    Naming follows the value: STRUCTURE[_PART][_TISSUE][_SIDE].
+    A name with no side suffix means "side not distinguished" (a midline bone, or
+    both sides carrying the same value).
 
-    # scapula
-    SCAPULA_BOTH = 4200  # whole scapula both sides
-    SCAPULA_LEFT = 4201  # whole scapula left side
-    SCAPULA_RIGHT = 4202  # whole scapula right side
-    SCAPULA_MEDIAL_LEFT = 4203  # medial part of left scapula
-    SCAPULA_MEDIAL_RIGHT = 4204  # medial part of right scapula
-    SCAPULA_LATERAL_LEFT = 4205  # lateral part of left scapula
-    SCAPULA_LATERAL_RIGHT = 4206  # lateral part of right scapula
+    PHALANX_HAND_<d>_<position> and PHALANX_FOOT_<d>_<position>:
+        <d> is the digit, 1..5, thumb to little finger / big toe to little toe.
+        <position> is PROXIMAL, MIDDLE or DISTAL, counted outward from the hand or
+        foot.  Digit 1 (thumb, big toe) has no MIDDLE phalanx.
+        So PHALANX_FOOT_1_DISTAL is the tip of the big toe, and
+        PHALANX_HAND_3_PROXIMAL_BASE_LEFT is the base of the proximal phalanx of
+        the left middle finger.
 
-    # humerus
-    HUMERUS_BOTH = 4300  # whole humerus both sides
-    HUMERUS_LEFT = 4301  # whole humerus left side
-    HUMERUS_RIGHT = 4302  # whole humerus right side
-    HUMERUS_PROXIMAL_LEFT = 4303  # proximal part of left humerus
-    HUMERUS_PROXIMAL_RIGHT = 4304  # proximal part of right humerus
-    HUMERUS_SHAFT_LEFT = 4305  # shaft part of left humerus
-    HUMERUS_SHAFT_RIGHT = 4306  # shaft part of right humerus
-    HUMERUS_DISTAL_LEFT = 4307  # distal part of left humerus
-    HUMERUS_DISTAL_RIGHT = 4308  # distal part of right humerus
+    Three levels of grouping are available for digits.  Singular PHALANX_ is one
+    bone; plural PHALANGES_ is a group of bones:
+        PHALANGES_FOOT            every phalanx of the foot
+        PHALANGES_FOOT_1          every phalanx of the big toe (all of digit 1)
+        PHALANX_FOOT_1_PROXIMAL   one bone: the proximal phalanx of the big toe
+    In the structure id MM is digit*10 + position (1 proximal, 2 middle, 3 distal),
+    so position 0 is free to mean "the whole digit".
 
-    # ulna
-    ULNA_BOTH = 4400  # whole ulna both sides
-    ULNA_LEFT = 4401  # whole ulna left side
-    ULNA_RIGHT = 4402  # whole ulna right side
-    ULNA_PROXIMAL_LEFT = 4403  # proximal part of left ulna
-    ULNA_PROXIMAL_RIGHT = 4404  # proximal part of right ulna
-    ULNA_SHAFT_LEFT = 4405  # shaft part of left ulna
-    ULNA_SHAFT_RIGHT = 4406  # shaft part of right ulna
-    ULNA_DISTAL_LEFT = 4407  # distal part of left ulna
-    ULNA_DISTAL_RIGHT = 4408  # distal part of right ulna
+    Each extremity includes its girdle: UPPER_EXTREMITY the SHOULDER_GIRDLE
+    (clavicle + scapula), LOWER_EXTREMITY the hip bone.  The sacrum and coccyx are
+    axial, so they belong to VERTEBRAL_COLUMN and PELVIS but not to LOWER_EXTREMITY.
 
-    # radius
-    RADIUS_BOTH = 4500  # whole radius both sides
-    RADIUS_LEFT = 4501  # whole radius left side
-    RADIUS_RIGHT = 4502  # whole radius right side
-    RADIUS_PROXIMAL_LEFT = 4503  # proximal part of left radius
-    RADIUS_PROXIMAL_RIGHT = 4504  # proximal part of right radius
-    RADIUS_SHAFT_LEFT = 4505  # shaft part of left radius
-    RADIUS_SHAFT_RIGHT = 4506  # shaft part of right radius
-    RADIUS_DISTAL_LEFT = 4507  # distal part of left radius
-    RADIUS_DISTAL_RIGHT = 4508  # distal part of right radius
+    Sesamoids: the patella, the pisiform (counted as a carpal) and the fabella have
+    their own labels.  Of the hand and foot sesamoids, only those present in nearly
+    everyone are labelled individually - the two at the thumb MCP joint and the two
+    under the head of the 1st metatarsal; variable ones fall under SESAMOIDS_HAND /
+    SESAMOIDS_FOOT.  They are named SESAMOID_<HAND|FOOT>_<d>_<joint>_<which>, with
+    the clinical terms RADIAL / ULNAR (hand) and TIBIAL / FIBULAR (foot), which also
+    keep MEDIAL / LATERAL free as part names.  As for phalanges, MM in the structure
+    id is digit*10 + k, and SESAMOIDS_<HAND|FOOT>_<d> groups one digit's sesamoids.
 
-    # carpals
-    CARPALS_BOTH = 4600  # whole carpals both sides
-    CARPALS_LEFT = 4601  # whole carpals left side
-    CARPALS_RIGHT = 4602  # whole carpals right side
+    Tissue variants are spelled out below only where cortical/trabecular work is
+    actually done: the six long bones (whole and thirds), every vertebra (whole and
+    body; C1 whole only), the hip bone (whole, ilium, ischium, pubis), and the
+    sacrum, coccyx, sternum, clavicle, scapula, patella, talus, calcaneus, mandible
+    and maxilla.  MEDULLARY_CAVITY exists only on the six long bones: other bones
+    hold their marrow in trabecular bone, without a medullary cavity.  Every other
+    combination the layout allows - say the trabecular core of a metacarpal shaft -
+    is a single line to add, and adding it moves no existing value.
 
-    SCAPHOID_LEFT = 4603  # scaphoid bone of left hand which is part of carpals
-    SCAPHOID_RIGHT = 4604  # scaphoid bone of right hand which is part of carpals
-    LUNATE_LEFT = 4605  # lunate bone of left hand which is part of carpals
-    LUNATE_RIGHT = 4606  # lunate bone of right hand which is part of carpals
-    TRIQUETRUM_LEFT = 4607  # triquetrum bone of left hand which is part of carpals
-    TRIQUETRUM_RIGHT = 4608  # triquetrum bone of right hand which is part of carpals
-    PISIFORM_LEFT = 4609  # pisiform bone of left hand which is part of carpals
-    PISIFORM_RIGHT = 4610  # pisiform bone of right hand which is part of carpals
-    TRAPEZIUM_LEFT = 4611  # trapezium bone of left hand which is part of carpals
-    TRAPEZIUM_RIGHT = 4612  # trapezium bone of right hand which is part of carpals
-    TRAPEZOID_LEFT = 4613  # trapezoid bone of left hand which is part of carpals
-    TRAPEZOID_RIGHT = 4614  # trapezoid bone of right hand which is part of carpals
-    CAPITATE_LEFT = 4615  # capitate bone of left hand which is part of carpals
-    CAPITATE_RIGHT = 4616  # capitate bone of right hand which is part of carpals
-    HAMATE_LEFT = 4617  # hamate bone of left hand which is part of carpals
-    HAMATE_RIGHT = 4618  # hamate bone of right hand which is part of carpals
+    NOTE ON STORAGE: values can reach 999_999_999, so masks need int32.  They are
+    NOT exactly representable in float32 - never read a mask with a float32 cast,
+    and prefer integer reads (np.asanyarray(img.dataobj)) over get_fdata().
 
-    # metacarpals
-    METACARPALS_BOTH = 4700  # whole metacarpals both sides
-    METACARPALS_LEFT = 4701  # whole metacarpals left side
-    METACARPALS_RIGHT = 4702  # whole metacarpals right side
-    METACARPAL_1_LEFT = 4703  # first metacarpal of left hand which is part of metacarpals
-    METACARPAL_1_RIGHT = 4704  # first metacarpal of right hand which is part of metacarpals
-    METACARPAL_2_LEFT = 4705  # second metacarpal of left hand which is part of metacarpals
-    METACARPAL_2_RIGHT = 4706  # second metacarpal of right hand which is part of metacarpals
-    METACARPAL_3_LEFT = 4707  # third metacarpal of left hand which is part of metacarpals
-    METACARPAL_3_RIGHT = 4708  # third metacarpal of right hand which is part of metacarpals
-    METACARPAL_4_LEFT = 4709  # fourth metacarpal of left hand which is part of metacarpals
-    METACARPAL_4_RIGHT = 4710  # fourth metacarpal of right hand which is part of metacarpals
-    METACARPAL_5_LEFT = 4711  # fifth metacarpal of left hand which is part of metacarpals
-    METACARPAL_5_RIGHT = 4712  # fifth metacarpal of right hand which is part of metacarpals
+    How a segmentation was produced and reviewed (its LabelStatus, see
+    label_status.py) is deliberately NOT part of the value: the same bone must
+    carry the same number however it was made.  Status lives in the per-segment
+    header of the mask file and in Subject_info_XXX.json.
+    """
 
-    # phalanges hand
-    PHALANGES_HAND_BOTH = 4800  # whole phalanges of both hands
-    PHALANGES_HAND_LEFT = 4801  # whole phalanges of left hand
-    PHALANGES_HAND_RIGHT = 4802  # whole phalanges of right hand
-    # The first digit after the underscore is the finger number (1-5 from thumb to little finger) and the second digit is the phalanx number (1-2 for thumb, 1-3 for fingers 2-5, from proximal to distal).
-    # for example, PHALANGE_HAND_2_3_LEFT corresponds to the distal phalanx of the second finger on the left hand.
-    PHALANGE_HAND_1_1_LEFT = 4803  # Thumb (digit 1) has only 2 phalanges: proximal and distal
-    PHALANGE_HAND_1_1_RIGHT = 4804
-    PHALANGE_HAND_1_2_LEFT = 4805
-    PHALANGE_HAND_1_2_RIGHT = 4806
-    PHALANGE_HAND_2_1_LEFT = 4807  # Digits 2-5 have 3 phalanges: proximal, middle, and distal
-    PHALANGE_HAND_2_1_RIGHT = 4808
-    PHALANGE_HAND_2_2_LEFT = 4809
-    PHALANGE_HAND_2_2_RIGHT = 4810
-    PHALANGE_HAND_2_3_LEFT = 4811
-    PHALANGE_HAND_2_3_RIGHT = 4812
-    PHALANGE_HAND_3_1_LEFT = 4813
-    PHALANGE_HAND_3_1_RIGHT = 4814
-    PHALANGE_HAND_3_2_LEFT = 4815
-    PHALANGE_HAND_3_2_RIGHT = 4816
-    PHALANGE_HAND_3_3_LEFT = 4817
-    PHALANGE_HAND_3_3_RIGHT = 4818
-    PHALANGE_HAND_4_1_LEFT = 4819
-    PHALANGE_HAND_4_1_RIGHT = 4820
-    PHALANGE_HAND_4_2_LEFT = 4821
-    PHALANGE_HAND_4_2_RIGHT = 4822
-    PHALANGE_HAND_4_3_LEFT = 4823
-    PHALANGE_HAND_4_3_RIGHT = 4824
-    PHALANGE_HAND_5_1_LEFT = 4825
-    PHALANGE_HAND_5_1_RIGHT = 4826
-    PHALANGE_HAND_5_2_LEFT = 4827
-    PHALANGE_HAND_5_2_RIGHT = 4828
-    PHALANGE_HAND_5_3_LEFT = 4829
-    PHALANGE_HAND_5_3_RIGHT = 4830
+    ## 0xxx - background
+    BACKGROUND = 0
 
-    ## lower extremity
-    LOWER_EXTREMITY_BOTH = 7000  # whole lower extremity (left+right) excluding sacrum and coccyx
-    LOWER_EXTREMITY_LEFT = 7001  # whole lower extremity left
-    LOWER_EXTREMITY_RIGHT = 7002  # whole lower extremity right
+    ## 1xxx - head
+    SKULL = 100000000  # cranium + facial bones; EXCLUDES the auditory ossicles and the hyoid
+    CRANIUM = 110000000  # braincase only, no facial bones
+    FRONTAL_BONE = 110100000
+    # PARIETAL_BONE
+    PARIETAL_BONE = 110200000  # side not distinguished (either side, or both merged)
+    PARIETAL_BONE_LEFT = 110200001
+    PARIETAL_BONE_RIGHT = 110200002
+    # TEMPORAL_BONE
+    TEMPORAL_BONE = 110300000  # side not distinguished (either side, or both merged)
+    TEMPORAL_BONE_LEFT = 110300001
+    TEMPORAL_BONE_RIGHT = 110300002
+    OCCIPITAL_BONE = 110400000
+    SPHENOID_BONE = 110500000
+    ETHMOID_BONE = 110600000
+    FACIAL_BONES = 120000000  # facial skeleton only, no braincase
+    # MANDIBLE
+    MANDIBLE = 120100000
+    MANDIBLE_CORTICAL = 120100010
+    MANDIBLE_TRABECULAR = 120100020
+    # MAXILLA
+    MAXILLA = 120200000  # side not distinguished (either side, or both merged)
+    MAXILLA_LEFT = 120200001
+    MAXILLA_RIGHT = 120200002
+    MAXILLA_CORTICAL = 120200010
+    MAXILLA_CORTICAL_LEFT = 120200011
+    MAXILLA_CORTICAL_RIGHT = 120200012
+    MAXILLA_TRABECULAR = 120200020
+    MAXILLA_TRABECULAR_LEFT = 120200021
+    MAXILLA_TRABECULAR_RIGHT = 120200022
+    # ZYGOMATIC_BONE
+    ZYGOMATIC_BONE = 120300000  # side not distinguished (either side, or both merged)
+    ZYGOMATIC_BONE_LEFT = 120300001
+    ZYGOMATIC_BONE_RIGHT = 120300002
+    # NASAL_BONE
+    NASAL_BONE = 120400000  # side not distinguished (either side, or both merged)
+    NASAL_BONE_LEFT = 120400001
+    NASAL_BONE_RIGHT = 120400002
+    # LACRIMAL_BONE
+    LACRIMAL_BONE = 120500000  # side not distinguished (either side, or both merged)
+    LACRIMAL_BONE_LEFT = 120500001
+    LACRIMAL_BONE_RIGHT = 120500002
+    # PALATINE_BONE
+    PALATINE_BONE = 120600000  # side not distinguished (either side, or both merged)
+    PALATINE_BONE_LEFT = 120600001
+    PALATINE_BONE_RIGHT = 120600002
+    VOMER = 120700000
+    # INFERIOR_NASAL_CONCHA
+    INFERIOR_NASAL_CONCHA = 120800000  # side not distinguished (either side, or both merged)
+    INFERIOR_NASAL_CONCHA_LEFT = 120800001
+    INFERIOR_NASAL_CONCHA_RIGHT = 120800002
+    HYOID = 130000000  # in the neck; not part of the skull
+    # AUDITORY_OSSICLES
+    AUDITORY_OSSICLES = 140000000  # malleus + incus + stapes, in the middle ear; not part of the skull; side not distinguished
+    AUDITORY_OSSICLES_LEFT = 140000001
+    AUDITORY_OSSICLES_RIGHT = 140000002
+    # MALLEUS
+    MALLEUS = 140100000  # side not distinguished (either side, or both merged)
+    MALLEUS_LEFT = 140100001
+    MALLEUS_RIGHT = 140100002
+    # INCUS
+    INCUS = 140200000  # side not distinguished (either side, or both merged)
+    INCUS_LEFT = 140200001
+    INCUS_RIGHT = 140200002
+    # STAPES
+    STAPES = 140300000  # side not distinguished (either side, or both merged)
+    STAPES_LEFT = 140300001
+    STAPES_RIGHT = 140300002
 
-    # hip
-    HIP_BOTH = 7100  # whole hip both sides excluding sacrum and coccyx
-    HIP_LEFT = 7101  # hip left side excluding sacrum and coccyx
-    HIP_RIGHT = 7102  # hip right side excluding sacrum and coccyx
-    ILLIUM_LEFT = 7103  # ilium bone of left hip which is part of hip
-    ILLIUM_RIGHT = 7104  # ilium bone of right hip which is part of hip
-    ISCHIUM_LEFT = 7105  # ischium bone of left hip which is part of hip
-    ISCHIUM_RIGHT = 7106  # ischium bone of right hip which is part of hip
-    PUBIS_LEFT = 7107  # pubis bone of left hip which is part of hip
-    PUBIS_RIGHT = 7108  # pubis bone of right hip which is part of hip
+    ## 2xxx - spine
+    VERTEBRAL_COLUMN = 200000000  # C1 .. L6 + sacrum + coccyx
+    PRESACRAL_SPINE = 200100000  # C1 .. L6; EXCLUDES sacrum and coccyx
+    CERVICAL_SPINE = 210000000  # C1 .. C7
+    # VERTEBRA_C1
+    VERTEBRA_C1 = 210100000  # atlas: it has no vertebral body, so no BODY / ARCH parts
+    VERTEBRA_C1_CORTICAL = 210100010
+    VERTEBRA_C1_TRABECULAR = 210100020
+    # VERTEBRA_C2
+    VERTEBRA_C2 = 210200000
+    VERTEBRA_C2_CORTICAL = 210200010
+    VERTEBRA_C2_TRABECULAR = 210200020
+    VERTEBRA_C2_BODY = 210210000
+    VERTEBRA_C2_BODY_CORTICAL = 210210010
+    VERTEBRA_C2_BODY_TRABECULAR = 210210020
+    VERTEBRA_C2_ARCH = 210211000
+    # VERTEBRA_C3
+    VERTEBRA_C3 = 210300000
+    VERTEBRA_C3_CORTICAL = 210300010
+    VERTEBRA_C3_TRABECULAR = 210300020
+    VERTEBRA_C3_BODY = 210310000
+    VERTEBRA_C3_BODY_CORTICAL = 210310010
+    VERTEBRA_C3_BODY_TRABECULAR = 210310020
+    VERTEBRA_C3_ARCH = 210311000
+    # VERTEBRA_C4
+    VERTEBRA_C4 = 210400000
+    VERTEBRA_C4_CORTICAL = 210400010
+    VERTEBRA_C4_TRABECULAR = 210400020
+    VERTEBRA_C4_BODY = 210410000
+    VERTEBRA_C4_BODY_CORTICAL = 210410010
+    VERTEBRA_C4_BODY_TRABECULAR = 210410020
+    VERTEBRA_C4_ARCH = 210411000
+    # VERTEBRA_C5
+    VERTEBRA_C5 = 210500000
+    VERTEBRA_C5_CORTICAL = 210500010
+    VERTEBRA_C5_TRABECULAR = 210500020
+    VERTEBRA_C5_BODY = 210510000
+    VERTEBRA_C5_BODY_CORTICAL = 210510010
+    VERTEBRA_C5_BODY_TRABECULAR = 210510020
+    VERTEBRA_C5_ARCH = 210511000
+    # VERTEBRA_C6
+    VERTEBRA_C6 = 210600000
+    VERTEBRA_C6_CORTICAL = 210600010
+    VERTEBRA_C6_TRABECULAR = 210600020
+    VERTEBRA_C6_BODY = 210610000
+    VERTEBRA_C6_BODY_CORTICAL = 210610010
+    VERTEBRA_C6_BODY_TRABECULAR = 210610020
+    VERTEBRA_C6_ARCH = 210611000
+    # VERTEBRA_C7
+    VERTEBRA_C7 = 210700000
+    VERTEBRA_C7_CORTICAL = 210700010
+    VERTEBRA_C7_TRABECULAR = 210700020
+    VERTEBRA_C7_BODY = 210710000
+    VERTEBRA_C7_BODY_CORTICAL = 210710010
+    VERTEBRA_C7_BODY_TRABECULAR = 210710020
+    VERTEBRA_C7_ARCH = 210711000
+    THORACIC_SPINE = 220000000  # T1 .. T13
+    # VERTEBRA_T1
+    VERTEBRA_T1 = 220100000
+    VERTEBRA_T1_CORTICAL = 220100010
+    VERTEBRA_T1_TRABECULAR = 220100020
+    VERTEBRA_T1_BODY = 220110000
+    VERTEBRA_T1_BODY_CORTICAL = 220110010
+    VERTEBRA_T1_BODY_TRABECULAR = 220110020
+    VERTEBRA_T1_ARCH = 220111000
+    # VERTEBRA_T2
+    VERTEBRA_T2 = 220200000
+    VERTEBRA_T2_CORTICAL = 220200010
+    VERTEBRA_T2_TRABECULAR = 220200020
+    VERTEBRA_T2_BODY = 220210000
+    VERTEBRA_T2_BODY_CORTICAL = 220210010
+    VERTEBRA_T2_BODY_TRABECULAR = 220210020
+    VERTEBRA_T2_ARCH = 220211000
+    # VERTEBRA_T3
+    VERTEBRA_T3 = 220300000
+    VERTEBRA_T3_CORTICAL = 220300010
+    VERTEBRA_T3_TRABECULAR = 220300020
+    VERTEBRA_T3_BODY = 220310000
+    VERTEBRA_T3_BODY_CORTICAL = 220310010
+    VERTEBRA_T3_BODY_TRABECULAR = 220310020
+    VERTEBRA_T3_ARCH = 220311000
+    # VERTEBRA_T4
+    VERTEBRA_T4 = 220400000
+    VERTEBRA_T4_CORTICAL = 220400010
+    VERTEBRA_T4_TRABECULAR = 220400020
+    VERTEBRA_T4_BODY = 220410000
+    VERTEBRA_T4_BODY_CORTICAL = 220410010
+    VERTEBRA_T4_BODY_TRABECULAR = 220410020
+    VERTEBRA_T4_ARCH = 220411000
+    # VERTEBRA_T5
+    VERTEBRA_T5 = 220500000
+    VERTEBRA_T5_CORTICAL = 220500010
+    VERTEBRA_T5_TRABECULAR = 220500020
+    VERTEBRA_T5_BODY = 220510000
+    VERTEBRA_T5_BODY_CORTICAL = 220510010
+    VERTEBRA_T5_BODY_TRABECULAR = 220510020
+    VERTEBRA_T5_ARCH = 220511000
+    # VERTEBRA_T6
+    VERTEBRA_T6 = 220600000
+    VERTEBRA_T6_CORTICAL = 220600010
+    VERTEBRA_T6_TRABECULAR = 220600020
+    VERTEBRA_T6_BODY = 220610000
+    VERTEBRA_T6_BODY_CORTICAL = 220610010
+    VERTEBRA_T6_BODY_TRABECULAR = 220610020
+    VERTEBRA_T6_ARCH = 220611000
+    # VERTEBRA_T7
+    VERTEBRA_T7 = 220700000
+    VERTEBRA_T7_CORTICAL = 220700010
+    VERTEBRA_T7_TRABECULAR = 220700020
+    VERTEBRA_T7_BODY = 220710000
+    VERTEBRA_T7_BODY_CORTICAL = 220710010
+    VERTEBRA_T7_BODY_TRABECULAR = 220710020
+    VERTEBRA_T7_ARCH = 220711000
+    # VERTEBRA_T8
+    VERTEBRA_T8 = 220800000
+    VERTEBRA_T8_CORTICAL = 220800010
+    VERTEBRA_T8_TRABECULAR = 220800020
+    VERTEBRA_T8_BODY = 220810000
+    VERTEBRA_T8_BODY_CORTICAL = 220810010
+    VERTEBRA_T8_BODY_TRABECULAR = 220810020
+    VERTEBRA_T8_ARCH = 220811000
+    # VERTEBRA_T9
+    VERTEBRA_T9 = 220900000
+    VERTEBRA_T9_CORTICAL = 220900010
+    VERTEBRA_T9_TRABECULAR = 220900020
+    VERTEBRA_T9_BODY = 220910000
+    VERTEBRA_T9_BODY_CORTICAL = 220910010
+    VERTEBRA_T9_BODY_TRABECULAR = 220910020
+    VERTEBRA_T9_ARCH = 220911000
+    # VERTEBRA_T10
+    VERTEBRA_T10 = 221000000
+    VERTEBRA_T10_CORTICAL = 221000010
+    VERTEBRA_T10_TRABECULAR = 221000020
+    VERTEBRA_T10_BODY = 221010000
+    VERTEBRA_T10_BODY_CORTICAL = 221010010
+    VERTEBRA_T10_BODY_TRABECULAR = 221010020
+    VERTEBRA_T10_ARCH = 221011000
+    # VERTEBRA_T11
+    VERTEBRA_T11 = 221100000
+    VERTEBRA_T11_CORTICAL = 221100010
+    VERTEBRA_T11_TRABECULAR = 221100020
+    VERTEBRA_T11_BODY = 221110000
+    VERTEBRA_T11_BODY_CORTICAL = 221110010
+    VERTEBRA_T11_BODY_TRABECULAR = 221110020
+    VERTEBRA_T11_ARCH = 221111000
+    # VERTEBRA_T12
+    VERTEBRA_T12 = 221200000
+    VERTEBRA_T12_CORTICAL = 221200010
+    VERTEBRA_T12_TRABECULAR = 221200020
+    VERTEBRA_T12_BODY = 221210000
+    VERTEBRA_T12_BODY_CORTICAL = 221210010
+    VERTEBRA_T12_BODY_TRABECULAR = 221210020
+    VERTEBRA_T12_ARCH = 221211000
+    # VERTEBRA_T13
+    VERTEBRA_T13 = 221300000  # anatomical variant; most people have 12 thoracic vertebrae
+    VERTEBRA_T13_CORTICAL = 221300010
+    VERTEBRA_T13_TRABECULAR = 221300020
+    VERTEBRA_T13_BODY = 221310000
+    VERTEBRA_T13_BODY_CORTICAL = 221310010
+    VERTEBRA_T13_BODY_TRABECULAR = 221310020
+    VERTEBRA_T13_ARCH = 221311000
+    LUMBAR_SPINE = 230000000  # L1 .. L6
+    # VERTEBRA_L1
+    VERTEBRA_L1 = 230100000
+    VERTEBRA_L1_CORTICAL = 230100010
+    VERTEBRA_L1_TRABECULAR = 230100020
+    VERTEBRA_L1_BODY = 230110000
+    VERTEBRA_L1_BODY_CORTICAL = 230110010
+    VERTEBRA_L1_BODY_TRABECULAR = 230110020
+    VERTEBRA_L1_ARCH = 230111000
+    # VERTEBRA_L2
+    VERTEBRA_L2 = 230200000
+    VERTEBRA_L2_CORTICAL = 230200010
+    VERTEBRA_L2_TRABECULAR = 230200020
+    VERTEBRA_L2_BODY = 230210000
+    VERTEBRA_L2_BODY_CORTICAL = 230210010
+    VERTEBRA_L2_BODY_TRABECULAR = 230210020
+    VERTEBRA_L2_ARCH = 230211000
+    # VERTEBRA_L3
+    VERTEBRA_L3 = 230300000
+    VERTEBRA_L3_CORTICAL = 230300010
+    VERTEBRA_L3_TRABECULAR = 230300020
+    VERTEBRA_L3_BODY = 230310000
+    VERTEBRA_L3_BODY_CORTICAL = 230310010
+    VERTEBRA_L3_BODY_TRABECULAR = 230310020
+    VERTEBRA_L3_ARCH = 230311000
+    # VERTEBRA_L4
+    VERTEBRA_L4 = 230400000
+    VERTEBRA_L4_CORTICAL = 230400010
+    VERTEBRA_L4_TRABECULAR = 230400020
+    VERTEBRA_L4_BODY = 230410000
+    VERTEBRA_L4_BODY_CORTICAL = 230410010
+    VERTEBRA_L4_BODY_TRABECULAR = 230410020
+    VERTEBRA_L4_ARCH = 230411000
+    # VERTEBRA_L5
+    VERTEBRA_L5 = 230500000
+    VERTEBRA_L5_CORTICAL = 230500010
+    VERTEBRA_L5_TRABECULAR = 230500020
+    VERTEBRA_L5_BODY = 230510000
+    VERTEBRA_L5_BODY_CORTICAL = 230510010
+    VERTEBRA_L5_BODY_TRABECULAR = 230510020
+    VERTEBRA_L5_ARCH = 230511000
+    # VERTEBRA_L6
+    VERTEBRA_L6 = 230600000  # anatomical variant; most people have 5 lumbar vertebrae
+    VERTEBRA_L6_CORTICAL = 230600010
+    VERTEBRA_L6_TRABECULAR = 230600020
+    VERTEBRA_L6_BODY = 230610000
+    VERTEBRA_L6_BODY_CORTICAL = 230610010
+    VERTEBRA_L6_BODY_TRABECULAR = 230610020
+    VERTEBRA_L6_ARCH = 230611000
+    # SACRUM
+    SACRUM = 240000000  # whole sacrum, S1 .. S5 fused
+    SACRUM_CORTICAL = 240000010
+    SACRUM_TRABECULAR = 240000020
+    # VERTEBRA_S1
+    VERTEBRA_S1 = 240100000
+    VERTEBRA_S1_CORTICAL = 240100010
+    VERTEBRA_S1_TRABECULAR = 240100020
+    VERTEBRA_S1_BODY = 240110000
+    VERTEBRA_S1_BODY_CORTICAL = 240110010
+    VERTEBRA_S1_BODY_TRABECULAR = 240110020
+    VERTEBRA_S1_ARCH = 240111000
+    # VERTEBRA_S2
+    VERTEBRA_S2 = 240200000
+    VERTEBRA_S2_CORTICAL = 240200010
+    VERTEBRA_S2_TRABECULAR = 240200020
+    VERTEBRA_S2_BODY = 240210000
+    VERTEBRA_S2_BODY_CORTICAL = 240210010
+    VERTEBRA_S2_BODY_TRABECULAR = 240210020
+    VERTEBRA_S2_ARCH = 240211000
+    # VERTEBRA_S3
+    VERTEBRA_S3 = 240300000
+    VERTEBRA_S3_CORTICAL = 240300010
+    VERTEBRA_S3_TRABECULAR = 240300020
+    VERTEBRA_S3_BODY = 240310000
+    VERTEBRA_S3_BODY_CORTICAL = 240310010
+    VERTEBRA_S3_BODY_TRABECULAR = 240310020
+    VERTEBRA_S3_ARCH = 240311000
+    # VERTEBRA_S4
+    VERTEBRA_S4 = 240400000
+    VERTEBRA_S4_CORTICAL = 240400010
+    VERTEBRA_S4_TRABECULAR = 240400020
+    VERTEBRA_S4_BODY = 240410000
+    VERTEBRA_S4_BODY_CORTICAL = 240410010
+    VERTEBRA_S4_BODY_TRABECULAR = 240410020
+    VERTEBRA_S4_ARCH = 240411000
+    # VERTEBRA_S5
+    VERTEBRA_S5 = 240500000
+    VERTEBRA_S5_CORTICAL = 240500010
+    VERTEBRA_S5_TRABECULAR = 240500020
+    VERTEBRA_S5_BODY = 240510000
+    VERTEBRA_S5_BODY_CORTICAL = 240510010
+    VERTEBRA_S5_BODY_TRABECULAR = 240510020
+    VERTEBRA_S5_ARCH = 240511000
+    SACRUM_S2_S5 = 240600000  # sacrum EXCLUDING the S1 vertebra
+    # COCCYX
+    COCCYX = 250000000  # tailbone; separate from the sacrum
+    COCCYX_CORTICAL = 250000010
+    COCCYX_TRABECULAR = 250000020
 
-    # femur
-    FEMUR_BOTH = 7200  # whole femur both sides
-    FEMUR_LEFT = 7201  # whole femur left side
-    FEMUR_RIGHT = 7202  # whole femur right side
-    FEMUR_PROXIMAL_LEFT = 7203  # proximal part of left femur
-    FEMUR_PROXIMAL_RIGHT = 7204  # proximal part of right femur
-    FEMUR_SHAFT_LEFT = 7205  # shaft part of left femur
-    FEMUR_SHAFT_RIGHT = 7206  # shaft part of right femur
-    FEMUR_DISTAL_LEFT = 7207  # distal part of left femur
-    FEMUR_DISTAL_RIGHT = 7208  # distal part of right femur
+    ## 3xxx - thorax
+    THORACIC_CAGE = 300000000  # ribs + costal cartilages + sternum; EXCLUDES the thoracic vertebrae
+    # RIBS
+    RIBS = 310000000  # all ribs; EXCLUDES sternum and costal cartilages; side not distinguished
+    RIBS_LEFT = 310000001
+    RIBS_RIGHT = 310000002
+    # RIB_1
+    RIB_1 = 310100000  # side not distinguished (either side, or both merged)
+    RIB_1_LEFT = 310100001
+    RIB_1_RIGHT = 310100002
+    RIB_1_ANTERIOR = 310108000
+    RIB_1_ANTERIOR_LEFT = 310108001
+    RIB_1_ANTERIOR_RIGHT = 310108002
+    RIB_1_LATERAL = 310107000
+    RIB_1_LATERAL_LEFT = 310107001
+    RIB_1_LATERAL_RIGHT = 310107002
+    RIB_1_POSTERIOR = 310109000
+    RIB_1_POSTERIOR_LEFT = 310109001
+    RIB_1_POSTERIOR_RIGHT = 310109002
+    # RIB_2
+    RIB_2 = 310200000  # side not distinguished (either side, or both merged)
+    RIB_2_LEFT = 310200001
+    RIB_2_RIGHT = 310200002
+    RIB_2_ANTERIOR = 310208000
+    RIB_2_ANTERIOR_LEFT = 310208001
+    RIB_2_ANTERIOR_RIGHT = 310208002
+    RIB_2_LATERAL = 310207000
+    RIB_2_LATERAL_LEFT = 310207001
+    RIB_2_LATERAL_RIGHT = 310207002
+    RIB_2_POSTERIOR = 310209000
+    RIB_2_POSTERIOR_LEFT = 310209001
+    RIB_2_POSTERIOR_RIGHT = 310209002
+    # RIB_3
+    RIB_3 = 310300000  # side not distinguished (either side, or both merged)
+    RIB_3_LEFT = 310300001
+    RIB_3_RIGHT = 310300002
+    RIB_3_ANTERIOR = 310308000
+    RIB_3_ANTERIOR_LEFT = 310308001
+    RIB_3_ANTERIOR_RIGHT = 310308002
+    RIB_3_LATERAL = 310307000
+    RIB_3_LATERAL_LEFT = 310307001
+    RIB_3_LATERAL_RIGHT = 310307002
+    RIB_3_POSTERIOR = 310309000
+    RIB_3_POSTERIOR_LEFT = 310309001
+    RIB_3_POSTERIOR_RIGHT = 310309002
+    # RIB_4
+    RIB_4 = 310400000  # side not distinguished (either side, or both merged)
+    RIB_4_LEFT = 310400001
+    RIB_4_RIGHT = 310400002
+    RIB_4_ANTERIOR = 310408000
+    RIB_4_ANTERIOR_LEFT = 310408001
+    RIB_4_ANTERIOR_RIGHT = 310408002
+    RIB_4_LATERAL = 310407000
+    RIB_4_LATERAL_LEFT = 310407001
+    RIB_4_LATERAL_RIGHT = 310407002
+    RIB_4_POSTERIOR = 310409000
+    RIB_4_POSTERIOR_LEFT = 310409001
+    RIB_4_POSTERIOR_RIGHT = 310409002
+    # RIB_5
+    RIB_5 = 310500000  # side not distinguished (either side, or both merged)
+    RIB_5_LEFT = 310500001
+    RIB_5_RIGHT = 310500002
+    RIB_5_ANTERIOR = 310508000
+    RIB_5_ANTERIOR_LEFT = 310508001
+    RIB_5_ANTERIOR_RIGHT = 310508002
+    RIB_5_LATERAL = 310507000
+    RIB_5_LATERAL_LEFT = 310507001
+    RIB_5_LATERAL_RIGHT = 310507002
+    RIB_5_POSTERIOR = 310509000
+    RIB_5_POSTERIOR_LEFT = 310509001
+    RIB_5_POSTERIOR_RIGHT = 310509002
+    # RIB_6
+    RIB_6 = 310600000  # side not distinguished (either side, or both merged)
+    RIB_6_LEFT = 310600001
+    RIB_6_RIGHT = 310600002
+    RIB_6_ANTERIOR = 310608000
+    RIB_6_ANTERIOR_LEFT = 310608001
+    RIB_6_ANTERIOR_RIGHT = 310608002
+    RIB_6_LATERAL = 310607000
+    RIB_6_LATERAL_LEFT = 310607001
+    RIB_6_LATERAL_RIGHT = 310607002
+    RIB_6_POSTERIOR = 310609000
+    RIB_6_POSTERIOR_LEFT = 310609001
+    RIB_6_POSTERIOR_RIGHT = 310609002
+    # RIB_7
+    RIB_7 = 310700000  # side not distinguished (either side, or both merged)
+    RIB_7_LEFT = 310700001
+    RIB_7_RIGHT = 310700002
+    RIB_7_ANTERIOR = 310708000
+    RIB_7_ANTERIOR_LEFT = 310708001
+    RIB_7_ANTERIOR_RIGHT = 310708002
+    RIB_7_LATERAL = 310707000
+    RIB_7_LATERAL_LEFT = 310707001
+    RIB_7_LATERAL_RIGHT = 310707002
+    RIB_7_POSTERIOR = 310709000
+    RIB_7_POSTERIOR_LEFT = 310709001
+    RIB_7_POSTERIOR_RIGHT = 310709002
+    # RIB_8
+    RIB_8 = 310800000  # side not distinguished (either side, or both merged)
+    RIB_8_LEFT = 310800001
+    RIB_8_RIGHT = 310800002
+    RIB_8_ANTERIOR = 310808000
+    RIB_8_ANTERIOR_LEFT = 310808001
+    RIB_8_ANTERIOR_RIGHT = 310808002
+    RIB_8_LATERAL = 310807000
+    RIB_8_LATERAL_LEFT = 310807001
+    RIB_8_LATERAL_RIGHT = 310807002
+    RIB_8_POSTERIOR = 310809000
+    RIB_8_POSTERIOR_LEFT = 310809001
+    RIB_8_POSTERIOR_RIGHT = 310809002
+    # RIB_9
+    RIB_9 = 310900000  # side not distinguished (either side, or both merged)
+    RIB_9_LEFT = 310900001
+    RIB_9_RIGHT = 310900002
+    RIB_9_ANTERIOR = 310908000
+    RIB_9_ANTERIOR_LEFT = 310908001
+    RIB_9_ANTERIOR_RIGHT = 310908002
+    RIB_9_LATERAL = 310907000
+    RIB_9_LATERAL_LEFT = 310907001
+    RIB_9_LATERAL_RIGHT = 310907002
+    RIB_9_POSTERIOR = 310909000
+    RIB_9_POSTERIOR_LEFT = 310909001
+    RIB_9_POSTERIOR_RIGHT = 310909002
+    # RIB_10
+    RIB_10 = 311000000  # side not distinguished (either side, or both merged)
+    RIB_10_LEFT = 311000001
+    RIB_10_RIGHT = 311000002
+    RIB_10_ANTERIOR = 311008000
+    RIB_10_ANTERIOR_LEFT = 311008001
+    RIB_10_ANTERIOR_RIGHT = 311008002
+    RIB_10_LATERAL = 311007000
+    RIB_10_LATERAL_LEFT = 311007001
+    RIB_10_LATERAL_RIGHT = 311007002
+    RIB_10_POSTERIOR = 311009000
+    RIB_10_POSTERIOR_LEFT = 311009001
+    RIB_10_POSTERIOR_RIGHT = 311009002
+    # RIB_11
+    RIB_11 = 311100000  # side not distinguished (either side, or both merged)
+    RIB_11_LEFT = 311100001
+    RIB_11_RIGHT = 311100002
+    RIB_11_ANTERIOR = 311108000
+    RIB_11_ANTERIOR_LEFT = 311108001
+    RIB_11_ANTERIOR_RIGHT = 311108002
+    RIB_11_LATERAL = 311107000
+    RIB_11_LATERAL_LEFT = 311107001
+    RIB_11_LATERAL_RIGHT = 311107002
+    RIB_11_POSTERIOR = 311109000
+    RIB_11_POSTERIOR_LEFT = 311109001
+    RIB_11_POSTERIOR_RIGHT = 311109002
+    # RIB_12
+    RIB_12 = 311200000  # side not distinguished (either side, or both merged)
+    RIB_12_LEFT = 311200001
+    RIB_12_RIGHT = 311200002
+    RIB_12_ANTERIOR = 311208000
+    RIB_12_ANTERIOR_LEFT = 311208001
+    RIB_12_ANTERIOR_RIGHT = 311208002
+    RIB_12_LATERAL = 311207000
+    RIB_12_LATERAL_LEFT = 311207001
+    RIB_12_LATERAL_RIGHT = 311207002
+    RIB_12_POSTERIOR = 311209000
+    RIB_12_POSTERIOR_LEFT = 311209001
+    RIB_12_POSTERIOR_RIGHT = 311209002
+    # RIB_13
+    RIB_13 = 311300000  # anatomical variant; most people have 12 rib pairs; side not distinguished
+    RIB_13_LEFT = 311300001
+    RIB_13_RIGHT = 311300002
+    RIB_13_ANTERIOR = 311308000
+    RIB_13_ANTERIOR_LEFT = 311308001
+    RIB_13_ANTERIOR_RIGHT = 311308002
+    RIB_13_LATERAL = 311307000
+    RIB_13_LATERAL_LEFT = 311307001
+    RIB_13_LATERAL_RIGHT = 311307002
+    RIB_13_POSTERIOR = 311309000
+    RIB_13_POSTERIOR_LEFT = 311309001
+    RIB_13_POSTERIOR_RIGHT = 311309002
+    # STERNUM
+    STERNUM = 320000000  # manubrium + body + xiphoid process
+    STERNUM_CORTICAL = 320000010
+    STERNUM_TRABECULAR = 320000020
+    STERNUM_MANUBRIUM = 320012000
+    STERNUM_BODY = 320010000
+    STERNUM_XIPHOID_PROCESS = 320013000
+    # COSTAL_CARTILAGES
+    COSTAL_CARTILAGES = 330000000  # cartilage, not bone; side not distinguished
+    COSTAL_CARTILAGES_LEFT = 330000001
+    COSTAL_CARTILAGES_RIGHT = 330000002
+    # COSTAL_CARTILAGE_1
+    COSTAL_CARTILAGE_1 = 330100000  # side not distinguished (either side, or both merged)
+    COSTAL_CARTILAGE_1_LEFT = 330100001
+    COSTAL_CARTILAGE_1_RIGHT = 330100002
+    # COSTAL_CARTILAGE_2
+    COSTAL_CARTILAGE_2 = 330200000  # side not distinguished (either side, or both merged)
+    COSTAL_CARTILAGE_2_LEFT = 330200001
+    COSTAL_CARTILAGE_2_RIGHT = 330200002
+    # COSTAL_CARTILAGE_3
+    COSTAL_CARTILAGE_3 = 330300000  # side not distinguished (either side, or both merged)
+    COSTAL_CARTILAGE_3_LEFT = 330300001
+    COSTAL_CARTILAGE_3_RIGHT = 330300002
+    # COSTAL_CARTILAGE_4
+    COSTAL_CARTILAGE_4 = 330400000  # side not distinguished (either side, or both merged)
+    COSTAL_CARTILAGE_4_LEFT = 330400001
+    COSTAL_CARTILAGE_4_RIGHT = 330400002
+    # COSTAL_CARTILAGE_5
+    COSTAL_CARTILAGE_5 = 330500000  # side not distinguished (either side, or both merged)
+    COSTAL_CARTILAGE_5_LEFT = 330500001
+    COSTAL_CARTILAGE_5_RIGHT = 330500002
+    # COSTAL_CARTILAGE_6
+    COSTAL_CARTILAGE_6 = 330600000  # side not distinguished (either side, or both merged)
+    COSTAL_CARTILAGE_6_LEFT = 330600001
+    COSTAL_CARTILAGE_6_RIGHT = 330600002
+    # COSTAL_CARTILAGE_7
+    COSTAL_CARTILAGE_7 = 330700000  # side not distinguished (either side, or both merged)
+    COSTAL_CARTILAGE_7_LEFT = 330700001
+    COSTAL_CARTILAGE_7_RIGHT = 330700002
+    # COSTAL_CARTILAGE_8
+    COSTAL_CARTILAGE_8 = 330800000  # side not distinguished (either side, or both merged)
+    COSTAL_CARTILAGE_8_LEFT = 330800001
+    COSTAL_CARTILAGE_8_RIGHT = 330800002
+    # COSTAL_CARTILAGE_9
+    COSTAL_CARTILAGE_9 = 330900000  # side not distinguished (either side, or both merged)
+    COSTAL_CARTILAGE_9_LEFT = 330900001
+    COSTAL_CARTILAGE_9_RIGHT = 330900002
+    # COSTAL_CARTILAGE_10
+    COSTAL_CARTILAGE_10 = 331000000  # side not distinguished (either side, or both merged)
+    COSTAL_CARTILAGE_10_LEFT = 331000001
+    COSTAL_CARTILAGE_10_RIGHT = 331000002
 
-    # tibia
-    TIBIA_BOTH = 7300  # whole tibia both sides
-    TIBIA_LEFT = 7301  # whole tibia left side
-    TIBIA_RIGHT = 7302  # whole tibia right side
-    TIBIA_PROXIMAL_LEFT = 7303  # proximal part of left tibia
-    TIBIA_PROXIMAL_RIGHT = 7304  # proximal part of right tibia
-    TIBIA_SHAFT_LEFT = 7305  # shaft part of left tibia
-    TIBIA_SHAFT_RIGHT = 7306  # shaft part of right tibia
-    TIBIA_DISTAL_LEFT = 7307  # distal part of left tibia
-    TIBIA_DISTAL_RIGHT = 7308  # distal part of right tibia
+    ## 4xxx - shoulder girdle and arm
+    # UPPER_EXTREMITY
+    UPPER_EXTREMITY = 400000000  # shoulder girdle (clavicle, scapula), arm, forearm and hand; side not distinguished
+    UPPER_EXTREMITY_LEFT = 400000001
+    UPPER_EXTREMITY_RIGHT = 400000002
+    # SHOULDER_GIRDLE
+    SHOULDER_GIRDLE = 400100000  # clavicle + scapula; side not distinguished
+    SHOULDER_GIRDLE_LEFT = 400100001
+    SHOULDER_GIRDLE_RIGHT = 400100002
+    # CLAVICLE
+    CLAVICLE = 410000000  # side not distinguished (either side, or both merged)
+    CLAVICLE_LEFT = 410000001
+    CLAVICLE_RIGHT = 410000002
+    CLAVICLE_CORTICAL = 410000010
+    CLAVICLE_CORTICAL_LEFT = 410000011
+    CLAVICLE_CORTICAL_RIGHT = 410000012
+    CLAVICLE_TRABECULAR = 410000020
+    CLAVICLE_TRABECULAR_LEFT = 410000021
+    CLAVICLE_TRABECULAR_RIGHT = 410000022
+    CLAVICLE_MEDIAL = 410006000
+    CLAVICLE_MEDIAL_LEFT = 410006001
+    CLAVICLE_MEDIAL_RIGHT = 410006002
+    CLAVICLE_SHAFT = 410002000
+    CLAVICLE_SHAFT_LEFT = 410002001
+    CLAVICLE_SHAFT_RIGHT = 410002002
+    CLAVICLE_LATERAL = 410007000
+    CLAVICLE_LATERAL_LEFT = 410007001
+    CLAVICLE_LATERAL_RIGHT = 410007002
+    # SCAPULA
+    SCAPULA = 420000000  # side not distinguished (either side, or both merged)
+    SCAPULA_LEFT = 420000001
+    SCAPULA_RIGHT = 420000002
+    SCAPULA_CORTICAL = 420000010
+    SCAPULA_CORTICAL_LEFT = 420000011
+    SCAPULA_CORTICAL_RIGHT = 420000012
+    SCAPULA_TRABECULAR = 420000020
+    SCAPULA_TRABECULAR_LEFT = 420000021
+    SCAPULA_TRABECULAR_RIGHT = 420000022
+    SCAPULA_MEDIAL = 420006000
+    SCAPULA_MEDIAL_LEFT = 420006001
+    SCAPULA_MEDIAL_RIGHT = 420006002
+    SCAPULA_LATERAL = 420007000
+    SCAPULA_LATERAL_LEFT = 420007001
+    SCAPULA_LATERAL_RIGHT = 420007002
+    # HUMERUS
+    HUMERUS = 430000000  # side not distinguished (either side, or both merged)
+    HUMERUS_LEFT = 430000001
+    HUMERUS_RIGHT = 430000002
+    HUMERUS_CORTICAL = 430000010
+    HUMERUS_CORTICAL_LEFT = 430000011
+    HUMERUS_CORTICAL_RIGHT = 430000012
+    HUMERUS_TRABECULAR = 430000020
+    HUMERUS_TRABECULAR_LEFT = 430000021
+    HUMERUS_TRABECULAR_RIGHT = 430000022
+    HUMERUS_MEDULLARY_CAVITY = 430000030
+    HUMERUS_MEDULLARY_CAVITY_LEFT = 430000031
+    HUMERUS_MEDULLARY_CAVITY_RIGHT = 430000032
+    HUMERUS_PROXIMAL = 430001000
+    HUMERUS_PROXIMAL_LEFT = 430001001
+    HUMERUS_PROXIMAL_RIGHT = 430001002
+    HUMERUS_PROXIMAL_CORTICAL = 430001010
+    HUMERUS_PROXIMAL_CORTICAL_LEFT = 430001011
+    HUMERUS_PROXIMAL_CORTICAL_RIGHT = 430001012
+    HUMERUS_PROXIMAL_TRABECULAR = 430001020
+    HUMERUS_PROXIMAL_TRABECULAR_LEFT = 430001021
+    HUMERUS_PROXIMAL_TRABECULAR_RIGHT = 430001022
+    HUMERUS_PROXIMAL_MEDULLARY_CAVITY = 430001030
+    HUMERUS_PROXIMAL_MEDULLARY_CAVITY_LEFT = 430001031
+    HUMERUS_PROXIMAL_MEDULLARY_CAVITY_RIGHT = 430001032
+    HUMERUS_SHAFT = 430002000
+    HUMERUS_SHAFT_LEFT = 430002001
+    HUMERUS_SHAFT_RIGHT = 430002002
+    HUMERUS_SHAFT_CORTICAL = 430002010
+    HUMERUS_SHAFT_CORTICAL_LEFT = 430002011
+    HUMERUS_SHAFT_CORTICAL_RIGHT = 430002012
+    HUMERUS_SHAFT_TRABECULAR = 430002020
+    HUMERUS_SHAFT_TRABECULAR_LEFT = 430002021
+    HUMERUS_SHAFT_TRABECULAR_RIGHT = 430002022
+    HUMERUS_SHAFT_MEDULLARY_CAVITY = 430002030
+    HUMERUS_SHAFT_MEDULLARY_CAVITY_LEFT = 430002031
+    HUMERUS_SHAFT_MEDULLARY_CAVITY_RIGHT = 430002032
+    HUMERUS_DISTAL = 430003000
+    HUMERUS_DISTAL_LEFT = 430003001
+    HUMERUS_DISTAL_RIGHT = 430003002
+    HUMERUS_DISTAL_CORTICAL = 430003010
+    HUMERUS_DISTAL_CORTICAL_LEFT = 430003011
+    HUMERUS_DISTAL_CORTICAL_RIGHT = 430003012
+    HUMERUS_DISTAL_TRABECULAR = 430003020
+    HUMERUS_DISTAL_TRABECULAR_LEFT = 430003021
+    HUMERUS_DISTAL_TRABECULAR_RIGHT = 430003022
+    HUMERUS_DISTAL_MEDULLARY_CAVITY = 430003030
+    HUMERUS_DISTAL_MEDULLARY_CAVITY_LEFT = 430003031
+    HUMERUS_DISTAL_MEDULLARY_CAVITY_RIGHT = 430003032
+    # ULNA
+    ULNA = 440000000  # side not distinguished (either side, or both merged)
+    ULNA_LEFT = 440000001
+    ULNA_RIGHT = 440000002
+    ULNA_CORTICAL = 440000010
+    ULNA_CORTICAL_LEFT = 440000011
+    ULNA_CORTICAL_RIGHT = 440000012
+    ULNA_TRABECULAR = 440000020
+    ULNA_TRABECULAR_LEFT = 440000021
+    ULNA_TRABECULAR_RIGHT = 440000022
+    ULNA_MEDULLARY_CAVITY = 440000030
+    ULNA_MEDULLARY_CAVITY_LEFT = 440000031
+    ULNA_MEDULLARY_CAVITY_RIGHT = 440000032
+    ULNA_PROXIMAL = 440001000
+    ULNA_PROXIMAL_LEFT = 440001001
+    ULNA_PROXIMAL_RIGHT = 440001002
+    ULNA_PROXIMAL_CORTICAL = 440001010
+    ULNA_PROXIMAL_CORTICAL_LEFT = 440001011
+    ULNA_PROXIMAL_CORTICAL_RIGHT = 440001012
+    ULNA_PROXIMAL_TRABECULAR = 440001020
+    ULNA_PROXIMAL_TRABECULAR_LEFT = 440001021
+    ULNA_PROXIMAL_TRABECULAR_RIGHT = 440001022
+    ULNA_PROXIMAL_MEDULLARY_CAVITY = 440001030
+    ULNA_PROXIMAL_MEDULLARY_CAVITY_LEFT = 440001031
+    ULNA_PROXIMAL_MEDULLARY_CAVITY_RIGHT = 440001032
+    ULNA_SHAFT = 440002000
+    ULNA_SHAFT_LEFT = 440002001
+    ULNA_SHAFT_RIGHT = 440002002
+    ULNA_SHAFT_CORTICAL = 440002010
+    ULNA_SHAFT_CORTICAL_LEFT = 440002011
+    ULNA_SHAFT_CORTICAL_RIGHT = 440002012
+    ULNA_SHAFT_TRABECULAR = 440002020
+    ULNA_SHAFT_TRABECULAR_LEFT = 440002021
+    ULNA_SHAFT_TRABECULAR_RIGHT = 440002022
+    ULNA_SHAFT_MEDULLARY_CAVITY = 440002030
+    ULNA_SHAFT_MEDULLARY_CAVITY_LEFT = 440002031
+    ULNA_SHAFT_MEDULLARY_CAVITY_RIGHT = 440002032
+    ULNA_DISTAL = 440003000
+    ULNA_DISTAL_LEFT = 440003001
+    ULNA_DISTAL_RIGHT = 440003002
+    ULNA_DISTAL_CORTICAL = 440003010
+    ULNA_DISTAL_CORTICAL_LEFT = 440003011
+    ULNA_DISTAL_CORTICAL_RIGHT = 440003012
+    ULNA_DISTAL_TRABECULAR = 440003020
+    ULNA_DISTAL_TRABECULAR_LEFT = 440003021
+    ULNA_DISTAL_TRABECULAR_RIGHT = 440003022
+    ULNA_DISTAL_MEDULLARY_CAVITY = 440003030
+    ULNA_DISTAL_MEDULLARY_CAVITY_LEFT = 440003031
+    ULNA_DISTAL_MEDULLARY_CAVITY_RIGHT = 440003032
+    # RADIUS
+    RADIUS = 450000000  # side not distinguished (either side, or both merged)
+    RADIUS_LEFT = 450000001
+    RADIUS_RIGHT = 450000002
+    RADIUS_CORTICAL = 450000010
+    RADIUS_CORTICAL_LEFT = 450000011
+    RADIUS_CORTICAL_RIGHT = 450000012
+    RADIUS_TRABECULAR = 450000020
+    RADIUS_TRABECULAR_LEFT = 450000021
+    RADIUS_TRABECULAR_RIGHT = 450000022
+    RADIUS_MEDULLARY_CAVITY = 450000030
+    RADIUS_MEDULLARY_CAVITY_LEFT = 450000031
+    RADIUS_MEDULLARY_CAVITY_RIGHT = 450000032
+    RADIUS_PROXIMAL = 450001000
+    RADIUS_PROXIMAL_LEFT = 450001001
+    RADIUS_PROXIMAL_RIGHT = 450001002
+    RADIUS_PROXIMAL_CORTICAL = 450001010
+    RADIUS_PROXIMAL_CORTICAL_LEFT = 450001011
+    RADIUS_PROXIMAL_CORTICAL_RIGHT = 450001012
+    RADIUS_PROXIMAL_TRABECULAR = 450001020
+    RADIUS_PROXIMAL_TRABECULAR_LEFT = 450001021
+    RADIUS_PROXIMAL_TRABECULAR_RIGHT = 450001022
+    RADIUS_PROXIMAL_MEDULLARY_CAVITY = 450001030
+    RADIUS_PROXIMAL_MEDULLARY_CAVITY_LEFT = 450001031
+    RADIUS_PROXIMAL_MEDULLARY_CAVITY_RIGHT = 450001032
+    RADIUS_SHAFT = 450002000
+    RADIUS_SHAFT_LEFT = 450002001
+    RADIUS_SHAFT_RIGHT = 450002002
+    RADIUS_SHAFT_CORTICAL = 450002010
+    RADIUS_SHAFT_CORTICAL_LEFT = 450002011
+    RADIUS_SHAFT_CORTICAL_RIGHT = 450002012
+    RADIUS_SHAFT_TRABECULAR = 450002020
+    RADIUS_SHAFT_TRABECULAR_LEFT = 450002021
+    RADIUS_SHAFT_TRABECULAR_RIGHT = 450002022
+    RADIUS_SHAFT_MEDULLARY_CAVITY = 450002030
+    RADIUS_SHAFT_MEDULLARY_CAVITY_LEFT = 450002031
+    RADIUS_SHAFT_MEDULLARY_CAVITY_RIGHT = 450002032
+    RADIUS_DISTAL = 450003000
+    RADIUS_DISTAL_LEFT = 450003001
+    RADIUS_DISTAL_RIGHT = 450003002
+    RADIUS_DISTAL_CORTICAL = 450003010
+    RADIUS_DISTAL_CORTICAL_LEFT = 450003011
+    RADIUS_DISTAL_CORTICAL_RIGHT = 450003012
+    RADIUS_DISTAL_TRABECULAR = 450003020
+    RADIUS_DISTAL_TRABECULAR_LEFT = 450003021
+    RADIUS_DISTAL_TRABECULAR_RIGHT = 450003022
+    RADIUS_DISTAL_MEDULLARY_CAVITY = 450003030
+    RADIUS_DISTAL_MEDULLARY_CAVITY_LEFT = 450003031
+    RADIUS_DISTAL_MEDULLARY_CAVITY_RIGHT = 450003032
 
-    # fibula
-    FIBULA_BOTH = 7400  # whole fibula both sides
-    FIBULA_LEFT = 7401  # whole fibula left side
-    FIBULA_RIGHT = 7402  # whole fibula right side
-    FIBULA_PROXIMAL_LEFT = 7403  # proximal part of left fibula
-    FIBULA_PROXIMAL_RIGHT = 7404  # proximal part of right fibula
-    FIBULA_SHAFT_LEFT = 7405  # shaft part of left fibula
-    FIBULA_SHAFT_RIGHT = 7406  # shaft part of right fibula
-    FIBULA_DISTAL_LEFT = 7407  # distal part of left fibula
-    FIBULA_DISTAL_RIGHT = 7408  # distal part of right fibula
+    ## 5xxx - hand
+    # HAND
+    HAND = 500000000  # carpals + metacarpals + phalanges + sesamoids; side not distinguished
+    HAND_LEFT = 500000001
+    HAND_RIGHT = 500000002
+    # CARPALS
+    CARPALS = 510000000  # the 8 wrist bones; side not distinguished
+    CARPALS_LEFT = 510000001
+    CARPALS_RIGHT = 510000002
+    # SCAPHOID
+    SCAPHOID = 510100000  # side not distinguished (either side, or both merged)
+    SCAPHOID_LEFT = 510100001
+    SCAPHOID_RIGHT = 510100002
+    # LUNATE
+    LUNATE = 510200000  # side not distinguished (either side, or both merged)
+    LUNATE_LEFT = 510200001
+    LUNATE_RIGHT = 510200002
+    # TRIQUETRUM
+    TRIQUETRUM = 510300000  # side not distinguished (either side, or both merged)
+    TRIQUETRUM_LEFT = 510300001
+    TRIQUETRUM_RIGHT = 510300002
+    # PISIFORM
+    PISIFORM = 510400000  # side not distinguished (either side, or both merged)
+    PISIFORM_LEFT = 510400001
+    PISIFORM_RIGHT = 510400002
+    # TRAPEZIUM
+    TRAPEZIUM = 510500000  # side not distinguished (either side, or both merged)
+    TRAPEZIUM_LEFT = 510500001
+    TRAPEZIUM_RIGHT = 510500002
+    # TRAPEZOID
+    TRAPEZOID = 510600000  # side not distinguished (either side, or both merged)
+    TRAPEZOID_LEFT = 510600001
+    TRAPEZOID_RIGHT = 510600002
+    # CAPITATE
+    CAPITATE = 510700000  # side not distinguished (either side, or both merged)
+    CAPITATE_LEFT = 510700001
+    CAPITATE_RIGHT = 510700002
+    # HAMATE
+    HAMATE = 510800000  # side not distinguished (either side, or both merged)
+    HAMATE_LEFT = 510800001
+    HAMATE_RIGHT = 510800002
+    # METACARPALS
+    METACARPALS = 520000000  # the 5 palm bones; side not distinguished
+    METACARPALS_LEFT = 520000001
+    METACARPALS_RIGHT = 520000002
+    # METACARPAL_1
+    METACARPAL_1 = 520100000  # counted from the thumb; side not distinguished
+    METACARPAL_1_LEFT = 520100001
+    METACARPAL_1_RIGHT = 520100002
+    METACARPAL_1_BASE = 520104000
+    METACARPAL_1_BASE_LEFT = 520104001
+    METACARPAL_1_BASE_RIGHT = 520104002
+    METACARPAL_1_SHAFT = 520102000
+    METACARPAL_1_SHAFT_LEFT = 520102001
+    METACARPAL_1_SHAFT_RIGHT = 520102002
+    METACARPAL_1_HEAD = 520105000
+    METACARPAL_1_HEAD_LEFT = 520105001
+    METACARPAL_1_HEAD_RIGHT = 520105002
+    # METACARPAL_2
+    METACARPAL_2 = 520200000  # counted from the thumb; side not distinguished
+    METACARPAL_2_LEFT = 520200001
+    METACARPAL_2_RIGHT = 520200002
+    METACARPAL_2_BASE = 520204000
+    METACARPAL_2_BASE_LEFT = 520204001
+    METACARPAL_2_BASE_RIGHT = 520204002
+    METACARPAL_2_SHAFT = 520202000
+    METACARPAL_2_SHAFT_LEFT = 520202001
+    METACARPAL_2_SHAFT_RIGHT = 520202002
+    METACARPAL_2_HEAD = 520205000
+    METACARPAL_2_HEAD_LEFT = 520205001
+    METACARPAL_2_HEAD_RIGHT = 520205002
+    # METACARPAL_3
+    METACARPAL_3 = 520300000  # counted from the thumb; side not distinguished
+    METACARPAL_3_LEFT = 520300001
+    METACARPAL_3_RIGHT = 520300002
+    METACARPAL_3_BASE = 520304000
+    METACARPAL_3_BASE_LEFT = 520304001
+    METACARPAL_3_BASE_RIGHT = 520304002
+    METACARPAL_3_SHAFT = 520302000
+    METACARPAL_3_SHAFT_LEFT = 520302001
+    METACARPAL_3_SHAFT_RIGHT = 520302002
+    METACARPAL_3_HEAD = 520305000
+    METACARPAL_3_HEAD_LEFT = 520305001
+    METACARPAL_3_HEAD_RIGHT = 520305002
+    # METACARPAL_4
+    METACARPAL_4 = 520400000  # counted from the thumb; side not distinguished
+    METACARPAL_4_LEFT = 520400001
+    METACARPAL_4_RIGHT = 520400002
+    METACARPAL_4_BASE = 520404000
+    METACARPAL_4_BASE_LEFT = 520404001
+    METACARPAL_4_BASE_RIGHT = 520404002
+    METACARPAL_4_SHAFT = 520402000
+    METACARPAL_4_SHAFT_LEFT = 520402001
+    METACARPAL_4_SHAFT_RIGHT = 520402002
+    METACARPAL_4_HEAD = 520405000
+    METACARPAL_4_HEAD_LEFT = 520405001
+    METACARPAL_4_HEAD_RIGHT = 520405002
+    # METACARPAL_5
+    METACARPAL_5 = 520500000  # counted from the thumb; side not distinguished
+    METACARPAL_5_LEFT = 520500001
+    METACARPAL_5_RIGHT = 520500002
+    METACARPAL_5_BASE = 520504000
+    METACARPAL_5_BASE_LEFT = 520504001
+    METACARPAL_5_BASE_RIGHT = 520504002
+    METACARPAL_5_SHAFT = 520502000
+    METACARPAL_5_SHAFT_LEFT = 520502001
+    METACARPAL_5_SHAFT_RIGHT = 520502002
+    METACARPAL_5_HEAD = 520505000
+    METACARPAL_5_HEAD_LEFT = 520505001
+    METACARPAL_5_HEAD_RIGHT = 520505002
+    # PHALANGES_HAND
+    PHALANGES_HAND = 530000000  # all finger bones; side not distinguished
+    PHALANGES_HAND_LEFT = 530000001
+    PHALANGES_HAND_RIGHT = 530000002
+    # PHALANGES_HAND_1
+    PHALANGES_HAND_1 = 531000000  # all 2 phalanges of the thumb as one label; side not distinguished
+    PHALANGES_HAND_1_LEFT = 531000001
+    PHALANGES_HAND_1_RIGHT = 531000002
+    # PHALANX_HAND_1_PROXIMAL
+    PHALANX_HAND_1_PROXIMAL = 531100000  # thumb (it has no middle phalanx); side not distinguished
+    PHALANX_HAND_1_PROXIMAL_LEFT = 531100001
+    PHALANX_HAND_1_PROXIMAL_RIGHT = 531100002
+    PHALANX_HAND_1_PROXIMAL_BASE = 531104000
+    PHALANX_HAND_1_PROXIMAL_BASE_LEFT = 531104001
+    PHALANX_HAND_1_PROXIMAL_BASE_RIGHT = 531104002
+    PHALANX_HAND_1_PROXIMAL_SHAFT = 531102000
+    PHALANX_HAND_1_PROXIMAL_SHAFT_LEFT = 531102001
+    PHALANX_HAND_1_PROXIMAL_SHAFT_RIGHT = 531102002
+    PHALANX_HAND_1_PROXIMAL_HEAD = 531105000
+    PHALANX_HAND_1_PROXIMAL_HEAD_LEFT = 531105001
+    PHALANX_HAND_1_PROXIMAL_HEAD_RIGHT = 531105002
+    # PHALANX_HAND_1_DISTAL
+    PHALANX_HAND_1_DISTAL = 531300000  # thumb (it has no middle phalanx); side not distinguished
+    PHALANX_HAND_1_DISTAL_LEFT = 531300001
+    PHALANX_HAND_1_DISTAL_RIGHT = 531300002
+    PHALANX_HAND_1_DISTAL_BASE = 531304000
+    PHALANX_HAND_1_DISTAL_BASE_LEFT = 531304001
+    PHALANX_HAND_1_DISTAL_BASE_RIGHT = 531304002
+    PHALANX_HAND_1_DISTAL_SHAFT = 531302000
+    PHALANX_HAND_1_DISTAL_SHAFT_LEFT = 531302001
+    PHALANX_HAND_1_DISTAL_SHAFT_RIGHT = 531302002
+    PHALANX_HAND_1_DISTAL_HEAD = 531305000
+    PHALANX_HAND_1_DISTAL_HEAD_LEFT = 531305001
+    PHALANX_HAND_1_DISTAL_HEAD_RIGHT = 531305002
+    # PHALANGES_HAND_2
+    PHALANGES_HAND_2 = 532000000  # all 3 phalanges of the index finger as one label; side not distinguished
+    PHALANGES_HAND_2_LEFT = 532000001
+    PHALANGES_HAND_2_RIGHT = 532000002
+    # PHALANX_HAND_2_PROXIMAL
+    PHALANX_HAND_2_PROXIMAL = 532100000  # index finger; side not distinguished
+    PHALANX_HAND_2_PROXIMAL_LEFT = 532100001
+    PHALANX_HAND_2_PROXIMAL_RIGHT = 532100002
+    PHALANX_HAND_2_PROXIMAL_BASE = 532104000
+    PHALANX_HAND_2_PROXIMAL_BASE_LEFT = 532104001
+    PHALANX_HAND_2_PROXIMAL_BASE_RIGHT = 532104002
+    PHALANX_HAND_2_PROXIMAL_SHAFT = 532102000
+    PHALANX_HAND_2_PROXIMAL_SHAFT_LEFT = 532102001
+    PHALANX_HAND_2_PROXIMAL_SHAFT_RIGHT = 532102002
+    PHALANX_HAND_2_PROXIMAL_HEAD = 532105000
+    PHALANX_HAND_2_PROXIMAL_HEAD_LEFT = 532105001
+    PHALANX_HAND_2_PROXIMAL_HEAD_RIGHT = 532105002
+    # PHALANX_HAND_2_MIDDLE
+    PHALANX_HAND_2_MIDDLE = 532200000  # index finger; side not distinguished
+    PHALANX_HAND_2_MIDDLE_LEFT = 532200001
+    PHALANX_HAND_2_MIDDLE_RIGHT = 532200002
+    PHALANX_HAND_2_MIDDLE_BASE = 532204000
+    PHALANX_HAND_2_MIDDLE_BASE_LEFT = 532204001
+    PHALANX_HAND_2_MIDDLE_BASE_RIGHT = 532204002
+    PHALANX_HAND_2_MIDDLE_SHAFT = 532202000
+    PHALANX_HAND_2_MIDDLE_SHAFT_LEFT = 532202001
+    PHALANX_HAND_2_MIDDLE_SHAFT_RIGHT = 532202002
+    PHALANX_HAND_2_MIDDLE_HEAD = 532205000
+    PHALANX_HAND_2_MIDDLE_HEAD_LEFT = 532205001
+    PHALANX_HAND_2_MIDDLE_HEAD_RIGHT = 532205002
+    # PHALANX_HAND_2_DISTAL
+    PHALANX_HAND_2_DISTAL = 532300000  # index finger; side not distinguished
+    PHALANX_HAND_2_DISTAL_LEFT = 532300001
+    PHALANX_HAND_2_DISTAL_RIGHT = 532300002
+    PHALANX_HAND_2_DISTAL_BASE = 532304000
+    PHALANX_HAND_2_DISTAL_BASE_LEFT = 532304001
+    PHALANX_HAND_2_DISTAL_BASE_RIGHT = 532304002
+    PHALANX_HAND_2_DISTAL_SHAFT = 532302000
+    PHALANX_HAND_2_DISTAL_SHAFT_LEFT = 532302001
+    PHALANX_HAND_2_DISTAL_SHAFT_RIGHT = 532302002
+    PHALANX_HAND_2_DISTAL_HEAD = 532305000
+    PHALANX_HAND_2_DISTAL_HEAD_LEFT = 532305001
+    PHALANX_HAND_2_DISTAL_HEAD_RIGHT = 532305002
+    # PHALANGES_HAND_3
+    PHALANGES_HAND_3 = 533000000  # all 3 phalanges of the middle finger as one label; side not distinguished
+    PHALANGES_HAND_3_LEFT = 533000001
+    PHALANGES_HAND_3_RIGHT = 533000002
+    # PHALANX_HAND_3_PROXIMAL
+    PHALANX_HAND_3_PROXIMAL = 533100000  # middle finger; side not distinguished
+    PHALANX_HAND_3_PROXIMAL_LEFT = 533100001
+    PHALANX_HAND_3_PROXIMAL_RIGHT = 533100002
+    PHALANX_HAND_3_PROXIMAL_BASE = 533104000
+    PHALANX_HAND_3_PROXIMAL_BASE_LEFT = 533104001
+    PHALANX_HAND_3_PROXIMAL_BASE_RIGHT = 533104002
+    PHALANX_HAND_3_PROXIMAL_SHAFT = 533102000
+    PHALANX_HAND_3_PROXIMAL_SHAFT_LEFT = 533102001
+    PHALANX_HAND_3_PROXIMAL_SHAFT_RIGHT = 533102002
+    PHALANX_HAND_3_PROXIMAL_HEAD = 533105000
+    PHALANX_HAND_3_PROXIMAL_HEAD_LEFT = 533105001
+    PHALANX_HAND_3_PROXIMAL_HEAD_RIGHT = 533105002
+    # PHALANX_HAND_3_MIDDLE
+    PHALANX_HAND_3_MIDDLE = 533200000  # middle finger; side not distinguished
+    PHALANX_HAND_3_MIDDLE_LEFT = 533200001
+    PHALANX_HAND_3_MIDDLE_RIGHT = 533200002
+    PHALANX_HAND_3_MIDDLE_BASE = 533204000
+    PHALANX_HAND_3_MIDDLE_BASE_LEFT = 533204001
+    PHALANX_HAND_3_MIDDLE_BASE_RIGHT = 533204002
+    PHALANX_HAND_3_MIDDLE_SHAFT = 533202000
+    PHALANX_HAND_3_MIDDLE_SHAFT_LEFT = 533202001
+    PHALANX_HAND_3_MIDDLE_SHAFT_RIGHT = 533202002
+    PHALANX_HAND_3_MIDDLE_HEAD = 533205000
+    PHALANX_HAND_3_MIDDLE_HEAD_LEFT = 533205001
+    PHALANX_HAND_3_MIDDLE_HEAD_RIGHT = 533205002
+    # PHALANX_HAND_3_DISTAL
+    PHALANX_HAND_3_DISTAL = 533300000  # middle finger; side not distinguished
+    PHALANX_HAND_3_DISTAL_LEFT = 533300001
+    PHALANX_HAND_3_DISTAL_RIGHT = 533300002
+    PHALANX_HAND_3_DISTAL_BASE = 533304000
+    PHALANX_HAND_3_DISTAL_BASE_LEFT = 533304001
+    PHALANX_HAND_3_DISTAL_BASE_RIGHT = 533304002
+    PHALANX_HAND_3_DISTAL_SHAFT = 533302000
+    PHALANX_HAND_3_DISTAL_SHAFT_LEFT = 533302001
+    PHALANX_HAND_3_DISTAL_SHAFT_RIGHT = 533302002
+    PHALANX_HAND_3_DISTAL_HEAD = 533305000
+    PHALANX_HAND_3_DISTAL_HEAD_LEFT = 533305001
+    PHALANX_HAND_3_DISTAL_HEAD_RIGHT = 533305002
+    # PHALANGES_HAND_4
+    PHALANGES_HAND_4 = 534000000  # all 3 phalanges of the ring finger as one label; side not distinguished
+    PHALANGES_HAND_4_LEFT = 534000001
+    PHALANGES_HAND_4_RIGHT = 534000002
+    # PHALANX_HAND_4_PROXIMAL
+    PHALANX_HAND_4_PROXIMAL = 534100000  # ring finger; side not distinguished
+    PHALANX_HAND_4_PROXIMAL_LEFT = 534100001
+    PHALANX_HAND_4_PROXIMAL_RIGHT = 534100002
+    PHALANX_HAND_4_PROXIMAL_BASE = 534104000
+    PHALANX_HAND_4_PROXIMAL_BASE_LEFT = 534104001
+    PHALANX_HAND_4_PROXIMAL_BASE_RIGHT = 534104002
+    PHALANX_HAND_4_PROXIMAL_SHAFT = 534102000
+    PHALANX_HAND_4_PROXIMAL_SHAFT_LEFT = 534102001
+    PHALANX_HAND_4_PROXIMAL_SHAFT_RIGHT = 534102002
+    PHALANX_HAND_4_PROXIMAL_HEAD = 534105000
+    PHALANX_HAND_4_PROXIMAL_HEAD_LEFT = 534105001
+    PHALANX_HAND_4_PROXIMAL_HEAD_RIGHT = 534105002
+    # PHALANX_HAND_4_MIDDLE
+    PHALANX_HAND_4_MIDDLE = 534200000  # ring finger; side not distinguished
+    PHALANX_HAND_4_MIDDLE_LEFT = 534200001
+    PHALANX_HAND_4_MIDDLE_RIGHT = 534200002
+    PHALANX_HAND_4_MIDDLE_BASE = 534204000
+    PHALANX_HAND_4_MIDDLE_BASE_LEFT = 534204001
+    PHALANX_HAND_4_MIDDLE_BASE_RIGHT = 534204002
+    PHALANX_HAND_4_MIDDLE_SHAFT = 534202000
+    PHALANX_HAND_4_MIDDLE_SHAFT_LEFT = 534202001
+    PHALANX_HAND_4_MIDDLE_SHAFT_RIGHT = 534202002
+    PHALANX_HAND_4_MIDDLE_HEAD = 534205000
+    PHALANX_HAND_4_MIDDLE_HEAD_LEFT = 534205001
+    PHALANX_HAND_4_MIDDLE_HEAD_RIGHT = 534205002
+    # PHALANX_HAND_4_DISTAL
+    PHALANX_HAND_4_DISTAL = 534300000  # ring finger; side not distinguished
+    PHALANX_HAND_4_DISTAL_LEFT = 534300001
+    PHALANX_HAND_4_DISTAL_RIGHT = 534300002
+    PHALANX_HAND_4_DISTAL_BASE = 534304000
+    PHALANX_HAND_4_DISTAL_BASE_LEFT = 534304001
+    PHALANX_HAND_4_DISTAL_BASE_RIGHT = 534304002
+    PHALANX_HAND_4_DISTAL_SHAFT = 534302000
+    PHALANX_HAND_4_DISTAL_SHAFT_LEFT = 534302001
+    PHALANX_HAND_4_DISTAL_SHAFT_RIGHT = 534302002
+    PHALANX_HAND_4_DISTAL_HEAD = 534305000
+    PHALANX_HAND_4_DISTAL_HEAD_LEFT = 534305001
+    PHALANX_HAND_4_DISTAL_HEAD_RIGHT = 534305002
+    # PHALANGES_HAND_5
+    PHALANGES_HAND_5 = 535000000  # all 3 phalanges of the little finger as one label; side not distinguished
+    PHALANGES_HAND_5_LEFT = 535000001
+    PHALANGES_HAND_5_RIGHT = 535000002
+    # PHALANX_HAND_5_PROXIMAL
+    PHALANX_HAND_5_PROXIMAL = 535100000  # little finger; side not distinguished
+    PHALANX_HAND_5_PROXIMAL_LEFT = 535100001
+    PHALANX_HAND_5_PROXIMAL_RIGHT = 535100002
+    PHALANX_HAND_5_PROXIMAL_BASE = 535104000
+    PHALANX_HAND_5_PROXIMAL_BASE_LEFT = 535104001
+    PHALANX_HAND_5_PROXIMAL_BASE_RIGHT = 535104002
+    PHALANX_HAND_5_PROXIMAL_SHAFT = 535102000
+    PHALANX_HAND_5_PROXIMAL_SHAFT_LEFT = 535102001
+    PHALANX_HAND_5_PROXIMAL_SHAFT_RIGHT = 535102002
+    PHALANX_HAND_5_PROXIMAL_HEAD = 535105000
+    PHALANX_HAND_5_PROXIMAL_HEAD_LEFT = 535105001
+    PHALANX_HAND_5_PROXIMAL_HEAD_RIGHT = 535105002
+    # PHALANX_HAND_5_MIDDLE
+    PHALANX_HAND_5_MIDDLE = 535200000  # little finger; side not distinguished
+    PHALANX_HAND_5_MIDDLE_LEFT = 535200001
+    PHALANX_HAND_5_MIDDLE_RIGHT = 535200002
+    PHALANX_HAND_5_MIDDLE_BASE = 535204000
+    PHALANX_HAND_5_MIDDLE_BASE_LEFT = 535204001
+    PHALANX_HAND_5_MIDDLE_BASE_RIGHT = 535204002
+    PHALANX_HAND_5_MIDDLE_SHAFT = 535202000
+    PHALANX_HAND_5_MIDDLE_SHAFT_LEFT = 535202001
+    PHALANX_HAND_5_MIDDLE_SHAFT_RIGHT = 535202002
+    PHALANX_HAND_5_MIDDLE_HEAD = 535205000
+    PHALANX_HAND_5_MIDDLE_HEAD_LEFT = 535205001
+    PHALANX_HAND_5_MIDDLE_HEAD_RIGHT = 535205002
+    # PHALANX_HAND_5_DISTAL
+    PHALANX_HAND_5_DISTAL = 535300000  # little finger; side not distinguished
+    PHALANX_HAND_5_DISTAL_LEFT = 535300001
+    PHALANX_HAND_5_DISTAL_RIGHT = 535300002
+    PHALANX_HAND_5_DISTAL_BASE = 535304000
+    PHALANX_HAND_5_DISTAL_BASE_LEFT = 535304001
+    PHALANX_HAND_5_DISTAL_BASE_RIGHT = 535304002
+    PHALANX_HAND_5_DISTAL_SHAFT = 535302000
+    PHALANX_HAND_5_DISTAL_SHAFT_LEFT = 535302001
+    PHALANX_HAND_5_DISTAL_SHAFT_RIGHT = 535302002
+    PHALANX_HAND_5_DISTAL_HEAD = 535305000
+    PHALANX_HAND_5_DISTAL_HEAD_LEFT = 535305001
+    PHALANX_HAND_5_DISTAL_HEAD_RIGHT = 535305002
+    # SESAMOIDS_HAND
+    SESAMOIDS_HAND = 540000000  # sesamoid bones of the hand; the pisiform counts as a carpal; side not distinguished
+    SESAMOIDS_HAND_LEFT = 540000001
+    SESAMOIDS_HAND_RIGHT = 540000002
+    # SESAMOIDS_HAND_1
+    SESAMOIDS_HAND_1 = 541000000  # all sesamoids of the thumb as one label; side not distinguished
+    SESAMOIDS_HAND_1_LEFT = 541000001
+    SESAMOIDS_HAND_1_RIGHT = 541000002
+    # SESAMOID_HAND_1_MCP_RADIAL
+    SESAMOID_HAND_1_MCP_RADIAL = 541100000  # radial sesamoid at the thumb MCP joint; side not distinguished
+    SESAMOID_HAND_1_MCP_RADIAL_LEFT = 541100001
+    SESAMOID_HAND_1_MCP_RADIAL_RIGHT = 541100002
+    # SESAMOID_HAND_1_MCP_ULNAR
+    SESAMOID_HAND_1_MCP_ULNAR = 541200000  # ulnar sesamoid at the thumb MCP joint; side not distinguished
+    SESAMOID_HAND_1_MCP_ULNAR_LEFT = 541200001
+    SESAMOID_HAND_1_MCP_ULNAR_RIGHT = 541200002
 
-    # patella
-    PATELLA_BOTH = 7500  # patella both sides
-    PATELLA_LEFT = 7501  # patella left side
-    PATELLA_RIGHT = 7502  # patella right side
+    ## 6xxx - pelvis
+    PELVIS = 600000000  # the bony pelvis: both hip bones + sacrum + coccyx
+    # HIP_BONE
+    HIP_BONE = 610000000  # os coxae: ilium + ischium + pubis fused; side not distinguished
+    HIP_BONE_LEFT = 610000001
+    HIP_BONE_RIGHT = 610000002
+    HIP_BONE_CORTICAL = 610000010
+    HIP_BONE_CORTICAL_LEFT = 610000011
+    HIP_BONE_CORTICAL_RIGHT = 610000012
+    HIP_BONE_TRABECULAR = 610000020
+    HIP_BONE_TRABECULAR_LEFT = 610000021
+    HIP_BONE_TRABECULAR_RIGHT = 610000022
+    HIP_BONE_ILIUM = 610020000
+    HIP_BONE_ILIUM_LEFT = 610020001
+    HIP_BONE_ILIUM_RIGHT = 610020002
+    HIP_BONE_ILIUM_CORTICAL = 610020010
+    HIP_BONE_ILIUM_CORTICAL_LEFT = 610020011
+    HIP_BONE_ILIUM_CORTICAL_RIGHT = 610020012
+    HIP_BONE_ILIUM_TRABECULAR = 610020020
+    HIP_BONE_ILIUM_TRABECULAR_LEFT = 610020021
+    HIP_BONE_ILIUM_TRABECULAR_RIGHT = 610020022
+    HIP_BONE_ISCHIUM = 610021000
+    HIP_BONE_ISCHIUM_LEFT = 610021001
+    HIP_BONE_ISCHIUM_RIGHT = 610021002
+    HIP_BONE_ISCHIUM_CORTICAL = 610021010
+    HIP_BONE_ISCHIUM_CORTICAL_LEFT = 610021011
+    HIP_BONE_ISCHIUM_CORTICAL_RIGHT = 610021012
+    HIP_BONE_ISCHIUM_TRABECULAR = 610021020
+    HIP_BONE_ISCHIUM_TRABECULAR_LEFT = 610021021
+    HIP_BONE_ISCHIUM_TRABECULAR_RIGHT = 610021022
+    HIP_BONE_PUBIS = 610022000
+    HIP_BONE_PUBIS_LEFT = 610022001
+    HIP_BONE_PUBIS_RIGHT = 610022002
+    HIP_BONE_PUBIS_CORTICAL = 610022010
+    HIP_BONE_PUBIS_CORTICAL_LEFT = 610022011
+    HIP_BONE_PUBIS_CORTICAL_RIGHT = 610022012
+    HIP_BONE_PUBIS_TRABECULAR = 610022020
+    HIP_BONE_PUBIS_TRABECULAR_LEFT = 610022021
+    HIP_BONE_PUBIS_TRABECULAR_RIGHT = 610022022
 
-    # tarsals
-    TARSALS_BOTH = 7600  # whole tarsals both sides
-    TARSALS_LEFT = 7601  # whole tarsals left side
-    TARSALS_RIGHT = 7602  # whole tarsals right side
-    TALUS_LEFT = 7603  # talus bone of left foot which is part of tarsals
-    TALUS_RIGHT = 7604  # talus bone of right foot which is part of tarsals
-    CALCANEUS_LEFT = 7605  # calcaneus bone of left foot which is part of tarsals
-    CALCANEUS_RIGHT = 7606  # calcaneus bone of right foot which is part of tarsals
-    NAVICULAR_LEFT = 7607  # navicular bone of left foot which is part of tarsals
-    NAVICULAR_RIGHT = 7608  # navicular bone of right foot which is part of tarsals
-    CUBOID_LEFT = 7609  # cuboid bone of left foot which is part of tarsals
-    CUBOID_RIGHT = 7610  # cuboid bone of right foot which is part of tarsals
-    LATERAL_CUNEIFORM_LEFT = 7611  # lateral cuneiform bone of left foot which is part of tarsals
-    LATERAL_CUNEIFORM_RIGHT = 7612  # lateral cuneiform bone of right foot which is part of tarsals
-    INTERMEDIATE_CUNEIFORM_LEFT = 7613  # intermediate cuneiform bone of left foot which is part of tarsals
-    INTERMEDIATE_CUNEIFORM_RIGHT = 7614  # intermediate cuneiform bone of right foot which is part of tarsals
-    MEDIAL_CUNEIFORM_LEFT = 7615  # medial cuneiform bone of left foot which is part of tarsals
-    MEDIAL_CUNEIFORM_RIGHT = 7616  # medial cuneiform bone of right foot which is part of tarsals
+    ## 7xxx - leg
+    # LOWER_EXTREMITY
+    LOWER_EXTREMITY = 700000000  # pelvic girdle (hip bone), thigh, leg and foot; EXCLUDES sacrum and coccyx; side not distinguished
+    LOWER_EXTREMITY_LEFT = 700000001
+    LOWER_EXTREMITY_RIGHT = 700000002
+    # FEMUR
+    FEMUR = 710000000  # side not distinguished (either side, or both merged)
+    FEMUR_LEFT = 710000001
+    FEMUR_RIGHT = 710000002
+    FEMUR_CORTICAL = 710000010
+    FEMUR_CORTICAL_LEFT = 710000011
+    FEMUR_CORTICAL_RIGHT = 710000012
+    FEMUR_TRABECULAR = 710000020
+    FEMUR_TRABECULAR_LEFT = 710000021
+    FEMUR_TRABECULAR_RIGHT = 710000022
+    FEMUR_MEDULLARY_CAVITY = 710000030
+    FEMUR_MEDULLARY_CAVITY_LEFT = 710000031
+    FEMUR_MEDULLARY_CAVITY_RIGHT = 710000032
+    FEMUR_PROXIMAL = 710001000
+    FEMUR_PROXIMAL_LEFT = 710001001
+    FEMUR_PROXIMAL_RIGHT = 710001002
+    FEMUR_PROXIMAL_CORTICAL = 710001010
+    FEMUR_PROXIMAL_CORTICAL_LEFT = 710001011
+    FEMUR_PROXIMAL_CORTICAL_RIGHT = 710001012
+    FEMUR_PROXIMAL_TRABECULAR = 710001020
+    FEMUR_PROXIMAL_TRABECULAR_LEFT = 710001021
+    FEMUR_PROXIMAL_TRABECULAR_RIGHT = 710001022
+    FEMUR_PROXIMAL_MEDULLARY_CAVITY = 710001030
+    FEMUR_PROXIMAL_MEDULLARY_CAVITY_LEFT = 710001031
+    FEMUR_PROXIMAL_MEDULLARY_CAVITY_RIGHT = 710001032
+    FEMUR_SHAFT = 710002000
+    FEMUR_SHAFT_LEFT = 710002001
+    FEMUR_SHAFT_RIGHT = 710002002
+    FEMUR_SHAFT_CORTICAL = 710002010
+    FEMUR_SHAFT_CORTICAL_LEFT = 710002011
+    FEMUR_SHAFT_CORTICAL_RIGHT = 710002012
+    FEMUR_SHAFT_TRABECULAR = 710002020
+    FEMUR_SHAFT_TRABECULAR_LEFT = 710002021
+    FEMUR_SHAFT_TRABECULAR_RIGHT = 710002022
+    FEMUR_SHAFT_MEDULLARY_CAVITY = 710002030
+    FEMUR_SHAFT_MEDULLARY_CAVITY_LEFT = 710002031
+    FEMUR_SHAFT_MEDULLARY_CAVITY_RIGHT = 710002032
+    FEMUR_DISTAL = 710003000
+    FEMUR_DISTAL_LEFT = 710003001
+    FEMUR_DISTAL_RIGHT = 710003002
+    FEMUR_DISTAL_CORTICAL = 710003010
+    FEMUR_DISTAL_CORTICAL_LEFT = 710003011
+    FEMUR_DISTAL_CORTICAL_RIGHT = 710003012
+    FEMUR_DISTAL_TRABECULAR = 710003020
+    FEMUR_DISTAL_TRABECULAR_LEFT = 710003021
+    FEMUR_DISTAL_TRABECULAR_RIGHT = 710003022
+    FEMUR_DISTAL_MEDULLARY_CAVITY = 710003030
+    FEMUR_DISTAL_MEDULLARY_CAVITY_LEFT = 710003031
+    FEMUR_DISTAL_MEDULLARY_CAVITY_RIGHT = 710003032
+    # PATELLA
+    PATELLA = 720000000  # side not distinguished (either side, or both merged)
+    PATELLA_LEFT = 720000001
+    PATELLA_RIGHT = 720000002
+    PATELLA_CORTICAL = 720000010
+    PATELLA_CORTICAL_LEFT = 720000011
+    PATELLA_CORTICAL_RIGHT = 720000012
+    PATELLA_TRABECULAR = 720000020
+    PATELLA_TRABECULAR_LEFT = 720000021
+    PATELLA_TRABECULAR_RIGHT = 720000022
+    # TIBIA
+    TIBIA = 730000000  # side not distinguished (either side, or both merged)
+    TIBIA_LEFT = 730000001
+    TIBIA_RIGHT = 730000002
+    TIBIA_CORTICAL = 730000010
+    TIBIA_CORTICAL_LEFT = 730000011
+    TIBIA_CORTICAL_RIGHT = 730000012
+    TIBIA_TRABECULAR = 730000020
+    TIBIA_TRABECULAR_LEFT = 730000021
+    TIBIA_TRABECULAR_RIGHT = 730000022
+    TIBIA_MEDULLARY_CAVITY = 730000030
+    TIBIA_MEDULLARY_CAVITY_LEFT = 730000031
+    TIBIA_MEDULLARY_CAVITY_RIGHT = 730000032
+    TIBIA_PROXIMAL = 730001000
+    TIBIA_PROXIMAL_LEFT = 730001001
+    TIBIA_PROXIMAL_RIGHT = 730001002
+    TIBIA_PROXIMAL_CORTICAL = 730001010
+    TIBIA_PROXIMAL_CORTICAL_LEFT = 730001011
+    TIBIA_PROXIMAL_CORTICAL_RIGHT = 730001012
+    TIBIA_PROXIMAL_TRABECULAR = 730001020
+    TIBIA_PROXIMAL_TRABECULAR_LEFT = 730001021
+    TIBIA_PROXIMAL_TRABECULAR_RIGHT = 730001022
+    TIBIA_PROXIMAL_MEDULLARY_CAVITY = 730001030
+    TIBIA_PROXIMAL_MEDULLARY_CAVITY_LEFT = 730001031
+    TIBIA_PROXIMAL_MEDULLARY_CAVITY_RIGHT = 730001032
+    TIBIA_SHAFT = 730002000
+    TIBIA_SHAFT_LEFT = 730002001
+    TIBIA_SHAFT_RIGHT = 730002002
+    TIBIA_SHAFT_CORTICAL = 730002010
+    TIBIA_SHAFT_CORTICAL_LEFT = 730002011
+    TIBIA_SHAFT_CORTICAL_RIGHT = 730002012
+    TIBIA_SHAFT_TRABECULAR = 730002020
+    TIBIA_SHAFT_TRABECULAR_LEFT = 730002021
+    TIBIA_SHAFT_TRABECULAR_RIGHT = 730002022
+    TIBIA_SHAFT_MEDULLARY_CAVITY = 730002030
+    TIBIA_SHAFT_MEDULLARY_CAVITY_LEFT = 730002031
+    TIBIA_SHAFT_MEDULLARY_CAVITY_RIGHT = 730002032
+    TIBIA_DISTAL = 730003000
+    TIBIA_DISTAL_LEFT = 730003001
+    TIBIA_DISTAL_RIGHT = 730003002
+    TIBIA_DISTAL_CORTICAL = 730003010
+    TIBIA_DISTAL_CORTICAL_LEFT = 730003011
+    TIBIA_DISTAL_CORTICAL_RIGHT = 730003012
+    TIBIA_DISTAL_TRABECULAR = 730003020
+    TIBIA_DISTAL_TRABECULAR_LEFT = 730003021
+    TIBIA_DISTAL_TRABECULAR_RIGHT = 730003022
+    TIBIA_DISTAL_MEDULLARY_CAVITY = 730003030
+    TIBIA_DISTAL_MEDULLARY_CAVITY_LEFT = 730003031
+    TIBIA_DISTAL_MEDULLARY_CAVITY_RIGHT = 730003032
+    # FIBULA
+    FIBULA = 740000000  # side not distinguished (either side, or both merged)
+    FIBULA_LEFT = 740000001
+    FIBULA_RIGHT = 740000002
+    FIBULA_CORTICAL = 740000010
+    FIBULA_CORTICAL_LEFT = 740000011
+    FIBULA_CORTICAL_RIGHT = 740000012
+    FIBULA_TRABECULAR = 740000020
+    FIBULA_TRABECULAR_LEFT = 740000021
+    FIBULA_TRABECULAR_RIGHT = 740000022
+    FIBULA_MEDULLARY_CAVITY = 740000030
+    FIBULA_MEDULLARY_CAVITY_LEFT = 740000031
+    FIBULA_MEDULLARY_CAVITY_RIGHT = 740000032
+    FIBULA_PROXIMAL = 740001000
+    FIBULA_PROXIMAL_LEFT = 740001001
+    FIBULA_PROXIMAL_RIGHT = 740001002
+    FIBULA_PROXIMAL_CORTICAL = 740001010
+    FIBULA_PROXIMAL_CORTICAL_LEFT = 740001011
+    FIBULA_PROXIMAL_CORTICAL_RIGHT = 740001012
+    FIBULA_PROXIMAL_TRABECULAR = 740001020
+    FIBULA_PROXIMAL_TRABECULAR_LEFT = 740001021
+    FIBULA_PROXIMAL_TRABECULAR_RIGHT = 740001022
+    FIBULA_PROXIMAL_MEDULLARY_CAVITY = 740001030
+    FIBULA_PROXIMAL_MEDULLARY_CAVITY_LEFT = 740001031
+    FIBULA_PROXIMAL_MEDULLARY_CAVITY_RIGHT = 740001032
+    FIBULA_SHAFT = 740002000
+    FIBULA_SHAFT_LEFT = 740002001
+    FIBULA_SHAFT_RIGHT = 740002002
+    FIBULA_SHAFT_CORTICAL = 740002010
+    FIBULA_SHAFT_CORTICAL_LEFT = 740002011
+    FIBULA_SHAFT_CORTICAL_RIGHT = 740002012
+    FIBULA_SHAFT_TRABECULAR = 740002020
+    FIBULA_SHAFT_TRABECULAR_LEFT = 740002021
+    FIBULA_SHAFT_TRABECULAR_RIGHT = 740002022
+    FIBULA_SHAFT_MEDULLARY_CAVITY = 740002030
+    FIBULA_SHAFT_MEDULLARY_CAVITY_LEFT = 740002031
+    FIBULA_SHAFT_MEDULLARY_CAVITY_RIGHT = 740002032
+    FIBULA_DISTAL = 740003000
+    FIBULA_DISTAL_LEFT = 740003001
+    FIBULA_DISTAL_RIGHT = 740003002
+    FIBULA_DISTAL_CORTICAL = 740003010
+    FIBULA_DISTAL_CORTICAL_LEFT = 740003011
+    FIBULA_DISTAL_CORTICAL_RIGHT = 740003012
+    FIBULA_DISTAL_TRABECULAR = 740003020
+    FIBULA_DISTAL_TRABECULAR_LEFT = 740003021
+    FIBULA_DISTAL_TRABECULAR_RIGHT = 740003022
+    FIBULA_DISTAL_MEDULLARY_CAVITY = 740003030
+    FIBULA_DISTAL_MEDULLARY_CAVITY_LEFT = 740003031
+    FIBULA_DISTAL_MEDULLARY_CAVITY_RIGHT = 740003032
+    # FABELLA
+    FABELLA = 750000000  # sesamoid behind the lateral femoral condyle; anatomical variant, absent in many people; side not distinguished
+    FABELLA_LEFT = 750000001
+    FABELLA_RIGHT = 750000002
 
-    # metatarsals
-    METATARSALS_BOTH = 7700  # whole metatarsals both sides
-    METATARSALS_LEFT = 7701  # whole metatarsals left side
-    METATARSALS_RIGHT = 7702  # whole metatarsals right side
-    METATARSAL_1_LEFT = 7703  # first metatarsal of left foot (starting from the big toe) which is part of metatarsals
-    METATARSAL_1_RIGHT = 7704  # first metatarsal of right foot (starting from the big toe) which is part of metatarsals
-    METATARSAL_2_LEFT = 7705  # second metatarsal of left foot which is part of metatarsals
-    METATARSAL_2_RIGHT = 7706  # second metatarsal of right foot which is part of metatarsals
-    METATARSAL_3_LEFT = 7707  # third metatarsal of left foot which is part of metatarsals
-    METATARSAL_3_RIGHT = 7708  # third metatarsal of right foot which is part of metatarsals
-    METATARSAL_4_LEFT = 7709  # fourth metatarsal of left foot which is part of metatarsals
-    METATARSAL_4_RIGHT = 7710  # fourth metatarsal of right foot which is part of metatarsals
-    METATARSAL_5_LEFT = 7711  # fifth metatarsal of left foot which is part of metatarsals
-    METATARSAL_5_RIGHT = 7712  # fifth metatarsal of right foot which is part of metatarsals
+    ## 8xxx - foot
+    # FOOT
+    FOOT = 800000000  # tarsals + metatarsals + phalanges + sesamoids; side not distinguished
+    FOOT_LEFT = 800000001
+    FOOT_RIGHT = 800000002
+    # TARSALS
+    TARSALS = 810000000  # the 7 ankle bones; side not distinguished
+    TARSALS_LEFT = 810000001
+    TARSALS_RIGHT = 810000002
+    # TALUS
+    TALUS = 810100000  # side not distinguished (either side, or both merged)
+    TALUS_LEFT = 810100001
+    TALUS_RIGHT = 810100002
+    TALUS_CORTICAL = 810100010
+    TALUS_CORTICAL_LEFT = 810100011
+    TALUS_CORTICAL_RIGHT = 810100012
+    TALUS_TRABECULAR = 810100020
+    TALUS_TRABECULAR_LEFT = 810100021
+    TALUS_TRABECULAR_RIGHT = 810100022
+    # CALCANEUS
+    CALCANEUS = 810200000  # side not distinguished (either side, or both merged)
+    CALCANEUS_LEFT = 810200001
+    CALCANEUS_RIGHT = 810200002
+    CALCANEUS_CORTICAL = 810200010
+    CALCANEUS_CORTICAL_LEFT = 810200011
+    CALCANEUS_CORTICAL_RIGHT = 810200012
+    CALCANEUS_TRABECULAR = 810200020
+    CALCANEUS_TRABECULAR_LEFT = 810200021
+    CALCANEUS_TRABECULAR_RIGHT = 810200022
+    # NAVICULAR
+    NAVICULAR = 810300000  # side not distinguished (either side, or both merged)
+    NAVICULAR_LEFT = 810300001
+    NAVICULAR_RIGHT = 810300002
+    # CUBOID
+    CUBOID = 810400000  # side not distinguished (either side, or both merged)
+    CUBOID_LEFT = 810400001
+    CUBOID_RIGHT = 810400002
+    # CUNEIFORM_MEDIAL
+    CUNEIFORM_MEDIAL = 810500000  # 1st cuneiform, nearest the big toe; side not distinguished
+    CUNEIFORM_MEDIAL_LEFT = 810500001
+    CUNEIFORM_MEDIAL_RIGHT = 810500002
+    # CUNEIFORM_INTERMEDIATE
+    CUNEIFORM_INTERMEDIATE = 810600000  # 2nd cuneiform; side not distinguished
+    CUNEIFORM_INTERMEDIATE_LEFT = 810600001
+    CUNEIFORM_INTERMEDIATE_RIGHT = 810600002
+    # CUNEIFORM_LATERAL
+    CUNEIFORM_LATERAL = 810700000  # 3rd cuneiform, nearest the little toe; side not distinguished
+    CUNEIFORM_LATERAL_LEFT = 810700001
+    CUNEIFORM_LATERAL_RIGHT = 810700002
+    # METATARSALS
+    METATARSALS = 820000000  # the 5 midfoot bones; side not distinguished
+    METATARSALS_LEFT = 820000001
+    METATARSALS_RIGHT = 820000002
+    # METATARSAL_1
+    METATARSAL_1 = 820100000  # counted from the big toe; side not distinguished
+    METATARSAL_1_LEFT = 820100001
+    METATARSAL_1_RIGHT = 820100002
+    METATARSAL_1_BASE = 820104000
+    METATARSAL_1_BASE_LEFT = 820104001
+    METATARSAL_1_BASE_RIGHT = 820104002
+    METATARSAL_1_SHAFT = 820102000
+    METATARSAL_1_SHAFT_LEFT = 820102001
+    METATARSAL_1_SHAFT_RIGHT = 820102002
+    METATARSAL_1_HEAD = 820105000
+    METATARSAL_1_HEAD_LEFT = 820105001
+    METATARSAL_1_HEAD_RIGHT = 820105002
+    # METATARSAL_2
+    METATARSAL_2 = 820200000  # counted from the big toe; side not distinguished
+    METATARSAL_2_LEFT = 820200001
+    METATARSAL_2_RIGHT = 820200002
+    METATARSAL_2_BASE = 820204000
+    METATARSAL_2_BASE_LEFT = 820204001
+    METATARSAL_2_BASE_RIGHT = 820204002
+    METATARSAL_2_SHAFT = 820202000
+    METATARSAL_2_SHAFT_LEFT = 820202001
+    METATARSAL_2_SHAFT_RIGHT = 820202002
+    METATARSAL_2_HEAD = 820205000
+    METATARSAL_2_HEAD_LEFT = 820205001
+    METATARSAL_2_HEAD_RIGHT = 820205002
+    # METATARSAL_3
+    METATARSAL_3 = 820300000  # counted from the big toe; side not distinguished
+    METATARSAL_3_LEFT = 820300001
+    METATARSAL_3_RIGHT = 820300002
+    METATARSAL_3_BASE = 820304000
+    METATARSAL_3_BASE_LEFT = 820304001
+    METATARSAL_3_BASE_RIGHT = 820304002
+    METATARSAL_3_SHAFT = 820302000
+    METATARSAL_3_SHAFT_LEFT = 820302001
+    METATARSAL_3_SHAFT_RIGHT = 820302002
+    METATARSAL_3_HEAD = 820305000
+    METATARSAL_3_HEAD_LEFT = 820305001
+    METATARSAL_3_HEAD_RIGHT = 820305002
+    # METATARSAL_4
+    METATARSAL_4 = 820400000  # counted from the big toe; side not distinguished
+    METATARSAL_4_LEFT = 820400001
+    METATARSAL_4_RIGHT = 820400002
+    METATARSAL_4_BASE = 820404000
+    METATARSAL_4_BASE_LEFT = 820404001
+    METATARSAL_4_BASE_RIGHT = 820404002
+    METATARSAL_4_SHAFT = 820402000
+    METATARSAL_4_SHAFT_LEFT = 820402001
+    METATARSAL_4_SHAFT_RIGHT = 820402002
+    METATARSAL_4_HEAD = 820405000
+    METATARSAL_4_HEAD_LEFT = 820405001
+    METATARSAL_4_HEAD_RIGHT = 820405002
+    # METATARSAL_5
+    METATARSAL_5 = 820500000  # counted from the big toe; side not distinguished
+    METATARSAL_5_LEFT = 820500001
+    METATARSAL_5_RIGHT = 820500002
+    METATARSAL_5_BASE = 820504000
+    METATARSAL_5_BASE_LEFT = 820504001
+    METATARSAL_5_BASE_RIGHT = 820504002
+    METATARSAL_5_SHAFT = 820502000
+    METATARSAL_5_SHAFT_LEFT = 820502001
+    METATARSAL_5_SHAFT_RIGHT = 820502002
+    METATARSAL_5_HEAD = 820505000
+    METATARSAL_5_HEAD_LEFT = 820505001
+    METATARSAL_5_HEAD_RIGHT = 820505002
+    # PHALANGES_FOOT
+    PHALANGES_FOOT = 830000000  # all toe bones; side not distinguished
+    PHALANGES_FOOT_LEFT = 830000001
+    PHALANGES_FOOT_RIGHT = 830000002
+    # PHALANGES_FOOT_1
+    PHALANGES_FOOT_1 = 831000000  # all 2 phalanges of the big toe as one label; side not distinguished
+    PHALANGES_FOOT_1_LEFT = 831000001
+    PHALANGES_FOOT_1_RIGHT = 831000002
+    # PHALANX_FOOT_1_PROXIMAL
+    PHALANX_FOOT_1_PROXIMAL = 831100000  # big toe (it has no middle phalanx); side not distinguished
+    PHALANX_FOOT_1_PROXIMAL_LEFT = 831100001
+    PHALANX_FOOT_1_PROXIMAL_RIGHT = 831100002
+    PHALANX_FOOT_1_PROXIMAL_BASE = 831104000
+    PHALANX_FOOT_1_PROXIMAL_BASE_LEFT = 831104001
+    PHALANX_FOOT_1_PROXIMAL_BASE_RIGHT = 831104002
+    PHALANX_FOOT_1_PROXIMAL_SHAFT = 831102000
+    PHALANX_FOOT_1_PROXIMAL_SHAFT_LEFT = 831102001
+    PHALANX_FOOT_1_PROXIMAL_SHAFT_RIGHT = 831102002
+    PHALANX_FOOT_1_PROXIMAL_HEAD = 831105000
+    PHALANX_FOOT_1_PROXIMAL_HEAD_LEFT = 831105001
+    PHALANX_FOOT_1_PROXIMAL_HEAD_RIGHT = 831105002
+    # PHALANX_FOOT_1_DISTAL
+    PHALANX_FOOT_1_DISTAL = 831300000  # big toe (it has no middle phalanx); side not distinguished
+    PHALANX_FOOT_1_DISTAL_LEFT = 831300001
+    PHALANX_FOOT_1_DISTAL_RIGHT = 831300002
+    PHALANX_FOOT_1_DISTAL_BASE = 831304000
+    PHALANX_FOOT_1_DISTAL_BASE_LEFT = 831304001
+    PHALANX_FOOT_1_DISTAL_BASE_RIGHT = 831304002
+    PHALANX_FOOT_1_DISTAL_SHAFT = 831302000
+    PHALANX_FOOT_1_DISTAL_SHAFT_LEFT = 831302001
+    PHALANX_FOOT_1_DISTAL_SHAFT_RIGHT = 831302002
+    PHALANX_FOOT_1_DISTAL_HEAD = 831305000
+    PHALANX_FOOT_1_DISTAL_HEAD_LEFT = 831305001
+    PHALANX_FOOT_1_DISTAL_HEAD_RIGHT = 831305002
+    # PHALANGES_FOOT_2
+    PHALANGES_FOOT_2 = 832000000  # all 3 phalanges of the second toe as one label; side not distinguished
+    PHALANGES_FOOT_2_LEFT = 832000001
+    PHALANGES_FOOT_2_RIGHT = 832000002
+    # PHALANX_FOOT_2_PROXIMAL
+    PHALANX_FOOT_2_PROXIMAL = 832100000  # second toe; side not distinguished
+    PHALANX_FOOT_2_PROXIMAL_LEFT = 832100001
+    PHALANX_FOOT_2_PROXIMAL_RIGHT = 832100002
+    PHALANX_FOOT_2_PROXIMAL_BASE = 832104000
+    PHALANX_FOOT_2_PROXIMAL_BASE_LEFT = 832104001
+    PHALANX_FOOT_2_PROXIMAL_BASE_RIGHT = 832104002
+    PHALANX_FOOT_2_PROXIMAL_SHAFT = 832102000
+    PHALANX_FOOT_2_PROXIMAL_SHAFT_LEFT = 832102001
+    PHALANX_FOOT_2_PROXIMAL_SHAFT_RIGHT = 832102002
+    PHALANX_FOOT_2_PROXIMAL_HEAD = 832105000
+    PHALANX_FOOT_2_PROXIMAL_HEAD_LEFT = 832105001
+    PHALANX_FOOT_2_PROXIMAL_HEAD_RIGHT = 832105002
+    # PHALANX_FOOT_2_MIDDLE
+    PHALANX_FOOT_2_MIDDLE = 832200000  # second toe; side not distinguished
+    PHALANX_FOOT_2_MIDDLE_LEFT = 832200001
+    PHALANX_FOOT_2_MIDDLE_RIGHT = 832200002
+    PHALANX_FOOT_2_MIDDLE_BASE = 832204000
+    PHALANX_FOOT_2_MIDDLE_BASE_LEFT = 832204001
+    PHALANX_FOOT_2_MIDDLE_BASE_RIGHT = 832204002
+    PHALANX_FOOT_2_MIDDLE_SHAFT = 832202000
+    PHALANX_FOOT_2_MIDDLE_SHAFT_LEFT = 832202001
+    PHALANX_FOOT_2_MIDDLE_SHAFT_RIGHT = 832202002
+    PHALANX_FOOT_2_MIDDLE_HEAD = 832205000
+    PHALANX_FOOT_2_MIDDLE_HEAD_LEFT = 832205001
+    PHALANX_FOOT_2_MIDDLE_HEAD_RIGHT = 832205002
+    # PHALANX_FOOT_2_DISTAL
+    PHALANX_FOOT_2_DISTAL = 832300000  # second toe; side not distinguished
+    PHALANX_FOOT_2_DISTAL_LEFT = 832300001
+    PHALANX_FOOT_2_DISTAL_RIGHT = 832300002
+    PHALANX_FOOT_2_DISTAL_BASE = 832304000
+    PHALANX_FOOT_2_DISTAL_BASE_LEFT = 832304001
+    PHALANX_FOOT_2_DISTAL_BASE_RIGHT = 832304002
+    PHALANX_FOOT_2_DISTAL_SHAFT = 832302000
+    PHALANX_FOOT_2_DISTAL_SHAFT_LEFT = 832302001
+    PHALANX_FOOT_2_DISTAL_SHAFT_RIGHT = 832302002
+    PHALANX_FOOT_2_DISTAL_HEAD = 832305000
+    PHALANX_FOOT_2_DISTAL_HEAD_LEFT = 832305001
+    PHALANX_FOOT_2_DISTAL_HEAD_RIGHT = 832305002
+    # PHALANGES_FOOT_3
+    PHALANGES_FOOT_3 = 833000000  # all 3 phalanges of the third toe as one label; side not distinguished
+    PHALANGES_FOOT_3_LEFT = 833000001
+    PHALANGES_FOOT_3_RIGHT = 833000002
+    # PHALANX_FOOT_3_PROXIMAL
+    PHALANX_FOOT_3_PROXIMAL = 833100000  # third toe; side not distinguished
+    PHALANX_FOOT_3_PROXIMAL_LEFT = 833100001
+    PHALANX_FOOT_3_PROXIMAL_RIGHT = 833100002
+    PHALANX_FOOT_3_PROXIMAL_BASE = 833104000
+    PHALANX_FOOT_3_PROXIMAL_BASE_LEFT = 833104001
+    PHALANX_FOOT_3_PROXIMAL_BASE_RIGHT = 833104002
+    PHALANX_FOOT_3_PROXIMAL_SHAFT = 833102000
+    PHALANX_FOOT_3_PROXIMAL_SHAFT_LEFT = 833102001
+    PHALANX_FOOT_3_PROXIMAL_SHAFT_RIGHT = 833102002
+    PHALANX_FOOT_3_PROXIMAL_HEAD = 833105000
+    PHALANX_FOOT_3_PROXIMAL_HEAD_LEFT = 833105001
+    PHALANX_FOOT_3_PROXIMAL_HEAD_RIGHT = 833105002
+    # PHALANX_FOOT_3_MIDDLE
+    PHALANX_FOOT_3_MIDDLE = 833200000  # third toe; side not distinguished
+    PHALANX_FOOT_3_MIDDLE_LEFT = 833200001
+    PHALANX_FOOT_3_MIDDLE_RIGHT = 833200002
+    PHALANX_FOOT_3_MIDDLE_BASE = 833204000
+    PHALANX_FOOT_3_MIDDLE_BASE_LEFT = 833204001
+    PHALANX_FOOT_3_MIDDLE_BASE_RIGHT = 833204002
+    PHALANX_FOOT_3_MIDDLE_SHAFT = 833202000
+    PHALANX_FOOT_3_MIDDLE_SHAFT_LEFT = 833202001
+    PHALANX_FOOT_3_MIDDLE_SHAFT_RIGHT = 833202002
+    PHALANX_FOOT_3_MIDDLE_HEAD = 833205000
+    PHALANX_FOOT_3_MIDDLE_HEAD_LEFT = 833205001
+    PHALANX_FOOT_3_MIDDLE_HEAD_RIGHT = 833205002
+    # PHALANX_FOOT_3_DISTAL
+    PHALANX_FOOT_3_DISTAL = 833300000  # third toe; side not distinguished
+    PHALANX_FOOT_3_DISTAL_LEFT = 833300001
+    PHALANX_FOOT_3_DISTAL_RIGHT = 833300002
+    PHALANX_FOOT_3_DISTAL_BASE = 833304000
+    PHALANX_FOOT_3_DISTAL_BASE_LEFT = 833304001
+    PHALANX_FOOT_3_DISTAL_BASE_RIGHT = 833304002
+    PHALANX_FOOT_3_DISTAL_SHAFT = 833302000
+    PHALANX_FOOT_3_DISTAL_SHAFT_LEFT = 833302001
+    PHALANX_FOOT_3_DISTAL_SHAFT_RIGHT = 833302002
+    PHALANX_FOOT_3_DISTAL_HEAD = 833305000
+    PHALANX_FOOT_3_DISTAL_HEAD_LEFT = 833305001
+    PHALANX_FOOT_3_DISTAL_HEAD_RIGHT = 833305002
+    # PHALANGES_FOOT_4
+    PHALANGES_FOOT_4 = 834000000  # all 3 phalanges of the fourth toe as one label; side not distinguished
+    PHALANGES_FOOT_4_LEFT = 834000001
+    PHALANGES_FOOT_4_RIGHT = 834000002
+    # PHALANX_FOOT_4_PROXIMAL
+    PHALANX_FOOT_4_PROXIMAL = 834100000  # fourth toe; side not distinguished
+    PHALANX_FOOT_4_PROXIMAL_LEFT = 834100001
+    PHALANX_FOOT_4_PROXIMAL_RIGHT = 834100002
+    PHALANX_FOOT_4_PROXIMAL_BASE = 834104000
+    PHALANX_FOOT_4_PROXIMAL_BASE_LEFT = 834104001
+    PHALANX_FOOT_4_PROXIMAL_BASE_RIGHT = 834104002
+    PHALANX_FOOT_4_PROXIMAL_SHAFT = 834102000
+    PHALANX_FOOT_4_PROXIMAL_SHAFT_LEFT = 834102001
+    PHALANX_FOOT_4_PROXIMAL_SHAFT_RIGHT = 834102002
+    PHALANX_FOOT_4_PROXIMAL_HEAD = 834105000
+    PHALANX_FOOT_4_PROXIMAL_HEAD_LEFT = 834105001
+    PHALANX_FOOT_4_PROXIMAL_HEAD_RIGHT = 834105002
+    # PHALANX_FOOT_4_MIDDLE
+    PHALANX_FOOT_4_MIDDLE = 834200000  # fourth toe; side not distinguished
+    PHALANX_FOOT_4_MIDDLE_LEFT = 834200001
+    PHALANX_FOOT_4_MIDDLE_RIGHT = 834200002
+    PHALANX_FOOT_4_MIDDLE_BASE = 834204000
+    PHALANX_FOOT_4_MIDDLE_BASE_LEFT = 834204001
+    PHALANX_FOOT_4_MIDDLE_BASE_RIGHT = 834204002
+    PHALANX_FOOT_4_MIDDLE_SHAFT = 834202000
+    PHALANX_FOOT_4_MIDDLE_SHAFT_LEFT = 834202001
+    PHALANX_FOOT_4_MIDDLE_SHAFT_RIGHT = 834202002
+    PHALANX_FOOT_4_MIDDLE_HEAD = 834205000
+    PHALANX_FOOT_4_MIDDLE_HEAD_LEFT = 834205001
+    PHALANX_FOOT_4_MIDDLE_HEAD_RIGHT = 834205002
+    # PHALANX_FOOT_4_DISTAL
+    PHALANX_FOOT_4_DISTAL = 834300000  # fourth toe; side not distinguished
+    PHALANX_FOOT_4_DISTAL_LEFT = 834300001
+    PHALANX_FOOT_4_DISTAL_RIGHT = 834300002
+    PHALANX_FOOT_4_DISTAL_BASE = 834304000
+    PHALANX_FOOT_4_DISTAL_BASE_LEFT = 834304001
+    PHALANX_FOOT_4_DISTAL_BASE_RIGHT = 834304002
+    PHALANX_FOOT_4_DISTAL_SHAFT = 834302000
+    PHALANX_FOOT_4_DISTAL_SHAFT_LEFT = 834302001
+    PHALANX_FOOT_4_DISTAL_SHAFT_RIGHT = 834302002
+    PHALANX_FOOT_4_DISTAL_HEAD = 834305000
+    PHALANX_FOOT_4_DISTAL_HEAD_LEFT = 834305001
+    PHALANX_FOOT_4_DISTAL_HEAD_RIGHT = 834305002
+    # PHALANGES_FOOT_5
+    PHALANGES_FOOT_5 = 835000000  # all 3 phalanges of the little toe as one label; side not distinguished
+    PHALANGES_FOOT_5_LEFT = 835000001
+    PHALANGES_FOOT_5_RIGHT = 835000002
+    # PHALANX_FOOT_5_PROXIMAL
+    PHALANX_FOOT_5_PROXIMAL = 835100000  # little toe; side not distinguished
+    PHALANX_FOOT_5_PROXIMAL_LEFT = 835100001
+    PHALANX_FOOT_5_PROXIMAL_RIGHT = 835100002
+    PHALANX_FOOT_5_PROXIMAL_BASE = 835104000
+    PHALANX_FOOT_5_PROXIMAL_BASE_LEFT = 835104001
+    PHALANX_FOOT_5_PROXIMAL_BASE_RIGHT = 835104002
+    PHALANX_FOOT_5_PROXIMAL_SHAFT = 835102000
+    PHALANX_FOOT_5_PROXIMAL_SHAFT_LEFT = 835102001
+    PHALANX_FOOT_5_PROXIMAL_SHAFT_RIGHT = 835102002
+    PHALANX_FOOT_5_PROXIMAL_HEAD = 835105000
+    PHALANX_FOOT_5_PROXIMAL_HEAD_LEFT = 835105001
+    PHALANX_FOOT_5_PROXIMAL_HEAD_RIGHT = 835105002
+    # PHALANX_FOOT_5_MIDDLE
+    PHALANX_FOOT_5_MIDDLE = 835200000  # little toe (often fused with its distal phalanx); side not distinguished
+    PHALANX_FOOT_5_MIDDLE_LEFT = 835200001
+    PHALANX_FOOT_5_MIDDLE_RIGHT = 835200002
+    PHALANX_FOOT_5_MIDDLE_BASE = 835204000
+    PHALANX_FOOT_5_MIDDLE_BASE_LEFT = 835204001
+    PHALANX_FOOT_5_MIDDLE_BASE_RIGHT = 835204002
+    PHALANX_FOOT_5_MIDDLE_SHAFT = 835202000
+    PHALANX_FOOT_5_MIDDLE_SHAFT_LEFT = 835202001
+    PHALANX_FOOT_5_MIDDLE_SHAFT_RIGHT = 835202002
+    PHALANX_FOOT_5_MIDDLE_HEAD = 835205000
+    PHALANX_FOOT_5_MIDDLE_HEAD_LEFT = 835205001
+    PHALANX_FOOT_5_MIDDLE_HEAD_RIGHT = 835205002
+    # PHALANX_FOOT_5_DISTAL
+    PHALANX_FOOT_5_DISTAL = 835300000  # little toe; side not distinguished
+    PHALANX_FOOT_5_DISTAL_LEFT = 835300001
+    PHALANX_FOOT_5_DISTAL_RIGHT = 835300002
+    PHALANX_FOOT_5_DISTAL_BASE = 835304000
+    PHALANX_FOOT_5_DISTAL_BASE_LEFT = 835304001
+    PHALANX_FOOT_5_DISTAL_BASE_RIGHT = 835304002
+    PHALANX_FOOT_5_DISTAL_SHAFT = 835302000
+    PHALANX_FOOT_5_DISTAL_SHAFT_LEFT = 835302001
+    PHALANX_FOOT_5_DISTAL_SHAFT_RIGHT = 835302002
+    PHALANX_FOOT_5_DISTAL_HEAD = 835305000
+    PHALANX_FOOT_5_DISTAL_HEAD_LEFT = 835305001
+    PHALANX_FOOT_5_DISTAL_HEAD_RIGHT = 835305002
+    # SESAMOIDS_FOOT
+    SESAMOIDS_FOOT = 840000000  # sesamoid bones of the foot; side not distinguished
+    SESAMOIDS_FOOT_LEFT = 840000001
+    SESAMOIDS_FOOT_RIGHT = 840000002
+    # SESAMOIDS_FOOT_1
+    SESAMOIDS_FOOT_1 = 841000000  # all sesamoids of the big toe as one label; side not distinguished
+    SESAMOIDS_FOOT_1_LEFT = 841000001
+    SESAMOIDS_FOOT_1_RIGHT = 841000002
+    # SESAMOID_FOOT_1_MTP_TIBIAL
+    SESAMOID_FOOT_1_MTP_TIBIAL = 841100000  # medial (tibial) sesamoid under the 1st metatarsal head; side not distinguished
+    SESAMOID_FOOT_1_MTP_TIBIAL_LEFT = 841100001
+    SESAMOID_FOOT_1_MTP_TIBIAL_RIGHT = 841100002
+    # SESAMOID_FOOT_1_MTP_FIBULAR
+    SESAMOID_FOOT_1_MTP_FIBULAR = 841200000  # lateral (fibular) sesamoid under the 1st metatarsal head; side not distinguished
+    SESAMOID_FOOT_1_MTP_FIBULAR_LEFT = 841200001
+    SESAMOID_FOOT_1_MTP_FIBULAR_RIGHT = 841200002
 
-    # phalanges foot
-    PHALANGES_FOOT_BOTH = 7800
-    PHALANGES_FOOT_LEFT = 7801
-    PHALANGES_FOOT_RIGHT = 7802
-    # The first digit after the underscore is the toe number (1-5 from big toe to little toe) and the second digit is the phalanx number (1-2 for digit 1, 1-3 for digits 2-5, from proximal to distal).
-    # for example, PHALANGE_FOOT_2_3_LEFT corresponds to the distal phalanx of the second toe on the left foot.
-    PHALANGE_FOOT_1_1_LEFT = 7803  # Big toe (digit 1) has only 2 phalanges: proximal and distal.
-    PHALANGE_FOOT_1_1_RIGHT = 7804
-    PHALANGE_FOOT_1_2_LEFT = 7805
-    PHALANGE_FOOT_1_2_RIGHT = 7806
-    PHALANGE_FOOT_2_1_LEFT = 7807  # Toes 2-5 have 3 phalanges: proximal, middle, and distal
-    PHALANGE_FOOT_2_1_RIGHT = 7808
-    PHALANGE_FOOT_2_2_LEFT = 7809
-    PHALANGE_FOOT_2_2_RIGHT = 7810
-    PHALANGE_FOOT_2_3_LEFT = 7811
-    PHALANGE_FOOT_2_3_RIGHT = 7812
-    PHALANGE_FOOT_3_1_LEFT = 7813
-    PHALANGE_FOOT_3_1_RIGHT = 7814
-    PHALANGE_FOOT_3_2_LEFT = 7815
-    PHALANGE_FOOT_3_2_RIGHT = 7816
-    PHALANGE_FOOT_3_3_LEFT = 7817
-    PHALANGE_FOOT_3_3_RIGHT = 7818
-    PHALANGE_FOOT_4_1_LEFT = 7819
-    PHALANGE_FOOT_4_1_RIGHT = 7820
-    PHALANGE_FOOT_4_2_LEFT = 7821
-    PHALANGE_FOOT_4_2_RIGHT = 7822
-    PHALANGE_FOOT_4_3_LEFT = 7823
-    PHALANGE_FOOT_4_3_RIGHT = 7824
-    PHALANGE_FOOT_5_1_LEFT = 7825
-    PHALANGE_FOOT_5_1_RIGHT = 7826
-    PHALANGE_FOOT_5_2_LEFT = 7827
-    PHALANGE_FOOT_5_2_RIGHT = 7828
-    PHALANGE_FOOT_5_3_LEFT = 7829
-    PHALANGE_FOOT_5_3_RIGHT = 7830
+    ## 9xxx - whole-body aggregates
+    SKELETON = 900000000  # every bone in the image
+    AXIAL_SKELETON = 900100000  # skull, auditory ossicles, hyoid, vertebral column (with sacrum and coccyx), ribs, sternum
+    APPENDICULAR_SKELETON = 900200000  # upper and lower extremities, each with its girdle
+    BONE_UNSPECIFIED = 990000000  # bone tissue not assigned to a named structure
 
     @classmethod
     def get_names_list(cls):
         return [label.name for label in cls]
+
+
+# The four fields of a label value, for callers that need to group or roll up labels.
+
+
+def structure_of(value: int) -> int:
+    """Which bone/group, e.g. 7100 for every femur label."""
+    return value // 100000
+
+
+def part_of(value: int) -> int:
+    """Which sub-division, 0 for the whole structure."""
+    return (value // 1000) % 100
+
+
+def tissue_of(value: int) -> int:
+    """0 = whole bone substance, 1 = cortical, 2 = trabecular, 3 = medullary cavity."""
+    return (value // 10) % 100
+
+
+def side_of(value: int) -> int:
+    """0 = not distinguished, 1 = left, 2 = right."""
+    return value % 10
 
 
 bonehub_to_snomed = {  # use https://github.com/ENHANCE-PET/MOOSE/blob/main/moosez/mappings/SNOMED.py

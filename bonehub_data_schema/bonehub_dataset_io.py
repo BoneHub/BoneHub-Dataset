@@ -11,8 +11,8 @@ BoneHub Dataset/
 │   │   ├── 001_000002.nii.gz
 │   │   └── ...
 │   ├── Segmentation/
-│   │   ├── 001_000001.nii.gz
-│   │   ├── 001_000002.nii.gz
+│   │   ├── 001_000001.seg.nrrd
+│   │   ├── 001_000002.seg.nrrd
 │   │   └── ...
 │   ├── Mesh/
 │   │   ├── 001_000001/
@@ -45,6 +45,8 @@ from pathlib import Path
 import json
 
 from . import DatasetInfo, SubjectInfo
+from ._version import __version__, is_compatible_schema_version
+from .segmentation_file import SEGMENTATION_SUFFIX
 
 DATASET_ZFILL = 3
 SUBJECT_ZFILL = 6
@@ -64,7 +66,15 @@ class BoneHubDatasetIO:
         dataset_info_path = self.dataset_path / f"Dataset_info_{str(self.dataset_id).zfill(DATASET_ZFILL)}.json"
         with open(dataset_info_path, "r") as f:
             dataset_info_dict = json.load(f)
-        return DatasetInfo(**dataset_info_dict)
+        dataset_info = DatasetInfo(**dataset_info_dict)
+        if not is_compatible_schema_version(dataset_info.schema_version):
+            raise ValueError(
+                f"'{self.dataset_path.name}' was written with schema version "
+                f"{dataset_info.schema_version or '(not recorded)'}, but this is {__version__}. Label values "
+                "and status codes differ between them, so it would be read with the wrong meaning. "
+                "Regenerate the dataset with the current converters."
+            )
+        return dataset_info
 
     def _load_subject_info(self) -> list[SubjectInfo]:
         subject_info_list = []
@@ -90,21 +100,21 @@ class BoneHubDatasetIO:
                 if not image_path.exists():
                     print(f"Image file {image_path} does not exist.")
                     return False
-            if subject.segmentation:
-                segmentation_path = self.get_segmentation_path(subject)
-                if not segmentation_path.exists():
-                    print(f"Segmentation file {segmentation_path} does not exist.")
-                    return False
+            # Labels recorded as not available (origin 0) have no file to check.
+            segmentation_path = self.get_segmentation_path(subject)
+            if segmentation_path is not None and not segmentation_path.exists():
+                print(f"Segmentation file {segmentation_path} does not exist.")
+                return False
             if subject.mesh:
                 mesh_paths = self.get_mesh_paths(subject)
-                for label in mesh_paths:
+                for label in subject.available_labels("mesh"):
                     mesh_path = mesh_paths[label]
                     if not mesh_path.exists():
                         print(f"Mesh file {mesh_path} does not exist.")
                         return False
             if subject.nurbs:
                 nurbs_paths = self.get_nurbs_paths(subject)
-                for label in nurbs_paths:
+                for label in subject.available_labels("nurbs"):
                     nurbs_path = nurbs_paths[label]
                     if not nurbs_path.exists():
                         print(f"NURBS file {nurbs_path} does not exist.")
@@ -126,11 +136,11 @@ class BoneHubDatasetIO:
 
     def get_segmentation_path(self, subject: SubjectInfo) -> Path | None:
         # TODO: write tests for this function
-        if subject.segmentation:
+        if subject.available_labels("segmentation"):
             return (
                 self.dataset_path
                 / "Segmentation"
-                / f"{str(subject.dataset_id).zfill(DATASET_ZFILL)}_{str(subject.subject_id).zfill(SUBJECT_ZFILL)}.nii.gz"
+                / f"{str(subject.dataset_id).zfill(DATASET_ZFILL)}_{str(subject.subject_id).zfill(SUBJECT_ZFILL)}{SEGMENTATION_SUFFIX}"
             )
         return None
 

@@ -48,6 +48,36 @@ DATASET_JOBS: tuple[DatasetJob, ...] = (
         dataset_class=custom_dataset_io.VSDReconstruction,
         source_root=Path("Z:/BoneHub/Public_Datasets/036 VSDFullBodyBoneReconstruction/Hamid_processed"),
     ),
+    DatasetJob(
+        name="totalsegmentator_ct",
+        dataset_id=6,
+        dataset_class=custom_dataset_io.TotalSegmentatorCT,
+        source_root=Path("Z:/BoneHub/Public_Datasets/027 Totalsegmentator/raw_data"),
+    ),
+    DatasetJob(
+        name="ctpelvic1k",
+        dataset_id=7,
+        dataset_class=custom_dataset_io.CTPelvic1K,
+        source_root=Path("Z:/BoneHub/Public_Datasets/044 CTPelvic1K"),
+    ),
+    DatasetJob(
+        name="pengwin",
+        dataset_id=8,
+        dataset_class=custom_dataset_io.PENGWIN,
+        source_root=Path("Z:/BoneHub/Public_Datasets/106 PENGWIN"),
+    ),
+    DatasetJob(
+        name="ctpel",
+        dataset_id=9,
+        dataset_class=custom_dataset_io.CTPEL,
+        source_root=Path("Z:/BoneHub/Public_Datasets/138 ctpel"),
+    ),
+    DatasetJob(
+        name="synthrad2023",
+        dataset_id=10,
+        dataset_class=custom_dataset_io.SynthRAD2023,
+        source_root=Path("Z:/BoneHub/Public_Datasets/006 SynthRAD2023"),
+    ),
 )
 
 
@@ -79,7 +109,16 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--quiet",
         action="store_true",
-        help="Suppress per-subject export logs from each converter.",
+        help="Hide the per-dataset progress bars.",
+    )
+    parser.add_argument(
+        "--skip-existing-images",
+        action="store_true",
+        help=(
+            "Keep images that were already exported and regenerate only segmentations, meshes and subject info. "
+            "An image is kept only if the previous Subject_info file shows it came from the same source subject. "
+            "Implies --overwrite."
+        ),
     )
     return parser.parse_args()
 
@@ -91,13 +130,16 @@ def select_jobs(selected_names: Sequence[str] | None) -> list[DatasetJob]:
     return [job for job in DATASET_JOBS if job.name in selected]
 
 
-def convert_dataset(job: DatasetJob, output_root: Path, overwrite: bool, verbose: bool) -> str:
+def convert_dataset(
+    job: DatasetJob, output_root: Path, overwrite: bool, verbose: bool, skip_existing_images: bool = False
+) -> str:
     dataset = job.dataset_class(job.source_root)
     dataset.export_to_bonehub_format(
         output_root=output_root,
         output_dataset_id=job.dataset_id,
-        overwrite=overwrite,
+        overwrite=overwrite or skip_existing_images,
         verbose=verbose,
+        skip_existing_images=skip_existing_images,
     )
     return f"{job.name} -> Dataset_{job.dataset_id:03d}"
 
@@ -120,7 +162,10 @@ def main() -> int:
 
     with ThreadPoolExecutor(max_workers=min(args.max_workers, len(jobs))) as executor:
         future_to_job = {
-            executor.submit(convert_dataset, job, output_root, args.overwrite, not args.quiet): job for job in jobs
+            executor.submit(
+                convert_dataset, job, output_root, args.overwrite, not args.quiet, args.skip_existing_images
+            ): job
+            for job in jobs
         }
         for future in as_completed(future_to_job):
             job = future_to_job[future]
