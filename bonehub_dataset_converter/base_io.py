@@ -9,6 +9,7 @@ import logging.handlers
 import multiprocessing
 from typing import Callable
 from concurrent.futures import ProcessPoolExecutor, as_completed
+from concurrent.futures.process import BrokenProcessPool
 import SimpleITK as sitk
 from tqdm import tqdm
 
@@ -27,12 +28,35 @@ from .utils import FROM_SOURCE
 DEFAULT_MAX_WORKERS = 8
 
 
+class DatasetConversionError(RuntimeError):
+    """Raised by export_to_bonehub_format when subjects failed or the conversion stopped; details are in the log."""
+
+    def __init__(self, message: str, log_file_path: Path, failed_subject_ids: tuple[int, ...] = ()):
+        # All fields go to args so the error survives pickling back from a worker process.
+        super().__init__(message, log_file_path, failed_subject_ids)
+        self.message = message
+        self.log_file_path = log_file_path
+        self.failed_subject_ids = failed_subject_ids
+
+    def __str__(self) -> str:
+        return f"{self.message} See '{self.log_file_path}' for details."
+
+
+def _format_ids(ids: list[int], limit: int = 20) -> str:
+    """List the ids, shortened when there are many; the log always has the full list."""
+    if len(ids) <= limit:
+        return str(ids)
+    return f"{str(ids[:limit])[:-1]}, ... ({len(ids) - limit} more)]"
+
+
 def _init_subject_worker(log_queue, logger_name: str) -> None:
-    """Forward the worker's log records to the parent and keep ITK/torch single-threaded."""
-    logger = logging.getLogger(logger_name)
-    logger.handlers = [logging.handlers.QueueHandler(log_queue)]
-    logger.setLevel(logging.INFO)
-    logger.propagate = False
+    """Forward the worker's log records and warnings to the parent and keep ITK/torch single-threaded."""
+    for name in (logger_name, "py.warnings"):
+        logger = logging.getLogger(name)
+        logger.handlers = [logging.handlers.QueueHandler(log_queue)]
+        logger.setLevel(logging.INFO)
+        logger.propagate = False
+    logging.captureWarnings(True)
     sitk.ProcessObject.SetGlobalDefaultNumberOfThreads(1)
     try:
         import torch
@@ -199,6 +223,11 @@ class BaseDatasetIO:
             skip_existing_images (bool): keep already exported images whose source subject is unchanged, and
                 regenerate everything else. Requires overwrite=True. Default is False.
             verbose (bool): show a progress bar. Default is True.
+        Returns:
+            Path: The log file of this conversion.
+        Raises:
+            DatasetConversionError: If any subject failed (the others are still converted and saved) or the
+                conversion stopped early. The log file names the failed subjects with their tracebacks.
         """
         self.dataset_info.dataset_id = output_dataset_id
         self.dataset_info.schema_version = SCHEMA_VERSION
@@ -216,13 +245,42 @@ class BaseDatasetIO:
         if skip_existing_images and not overwrite:
             raise ValueError("skip_existing_images=True reuses files in an existing dataset, so it needs overwrite=True.")
 
-        # Configure logger
         os.makedirs(dataset_path, exist_ok=True)
         log_handler = logging.FileHandler(log_file_path, mode="w")
-        log_formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-        log_handler.setFormatter(log_formatter)
+        log_handler.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s"))
         self.logger.addHandler(log_handler)
         self.logger.setLevel(logging.INFO)
+        try:
+            failed_subject_ids = self._export_subjects(
+                dataset_path, log_handler, num_workers, skip_existing_subjects, skip_existing_images, verbose
+            )
+        except Exception as exc:
+            self.logger.exception(f"Conversion of {dataset_path.name} stopped by an error.")
+            raise DatasetConversionError(f"Conversion of {dataset_path.name} stopped: {exc!r}.", log_file_path) from exc
+        finally:
+            self.logger.removeHandler(log_handler)
+            log_handler.close()
+
+        if failed_subject_ids:
+            raise DatasetConversionError(
+                f"{len(failed_subject_ids)} subject(s) of {dataset_path.name} failed: {_format_ids(failed_subject_ids)}.",
+                log_file_path,
+                tuple(failed_subject_ids),
+            )
+        return log_file_path
+
+    def _export_subjects(
+        self,
+        dataset_path: Path,
+        log_handler: logging.Handler,
+        num_workers: int | None,
+        skip_existing_subjects: bool,
+        skip_existing_images: bool,
+        verbose: bool,
+    ) -> list[int]:
+        """Convert every subject into dataset_path and return the ids of the subjects that failed."""
+        dataset_info_path = dataset_path / f"Dataset_info_{self.dataset_info.dataset_id:03d}.json"
+        subject_info_path = dataset_path / f"Subject_info_{self.dataset_info.dataset_id:03d}.json"
 
         self._skip_existing_images = skip_existing_images
         self._previous_sources = {}
@@ -282,6 +340,7 @@ class BaseDatasetIO:
         log_queue = context.Queue()
         log_listener = logging.handlers.QueueListener(log_queue, log_handler)
         log_listener.start()
+        failed_subject_ids = []
         try:
             with ProcessPoolExecutor(
                 max_workers=num_workers,
@@ -303,7 +362,22 @@ class BaseDatasetIO:
                 )
                 for future in progress_bar:
                     index = futures[future]
-                    subject_info[index] = future.result()
+                    subject_id = index + 1
+                    try:
+                        subject_info[index] = future.result()
+                    except Exception as exc:
+                        failed_subject_ids.append(subject_id)
+                        progress_bar.set_postfix(failed=len(failed_subject_ids))
+                        source = datalist[index].subject_info.source_subject_path
+                        if isinstance(exc, BrokenProcessPool):
+                            # A worker died without raising, and every unfinished subject ends here; no traceback helps.
+                            self.logger.error(
+                                f"Subject {subject_id} failed (source: '{source}'): a worker process died unexpectedly, "
+                                "often from running out of memory."
+                            )
+                        else:
+                            self.logger.exception(f"Subject {subject_id} failed (source: '{source}').")
+                        continue
                     with open(subject_info_path, "w") as f:
                         json.dump(subject_info, f, indent=4)
                     self.logger.info(
@@ -311,8 +385,15 @@ class BaseDatasetIO:
                     )
         finally:
             log_listener.stop()
-            self.logger.removeHandler(log_handler)
-            log_handler.close()
 
-        self.logger.info(f"Finished exporting dataset to '{dataset_path}'. Total subjects exported: {len(subject_info)}.")
-        self.logger.info(f"Log file saved to {log_file_path}")
+        failed_subject_ids.sort()
+        self.logger.info(
+            f"Summary of {dataset_path.name}: {len(datalist)} subjects; {len(futures) - len(failed_subject_ids)} converted, "
+            f"{len(existing_subject_ids)} kept from an earlier run, {len(failed_subject_ids)} failed."
+        )
+        if failed_subject_ids:
+            self.logger.error(
+                f"Failed subjects: {failed_subject_ids}. Their errors are logged above; "
+                "run again with skip_existing_subjects=True to convert only the missing subjects."
+            )
+        return failed_subject_ids
