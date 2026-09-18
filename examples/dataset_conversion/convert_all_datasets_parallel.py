@@ -46,7 +46,7 @@ DATASET_JOBS: tuple[DatasetJob, ...] = (
         name="vsd_reconstruction",
         dataset_id=5,
         dataset_class=custom_dataset_io.VSDReconstruction,
-        source_root=Path("Z:/BoneHub/Public_Datasets/036 VSDFullBodyBoneReconstruction/Hamid_processed"),
+        source_root=Path("Z:/BoneHub/Public_Datasets/036 VSDFullBodyBoneReconstruction/Hamid_processed/vsd-lower-extremities-seg"),
     ),
     DatasetJob(
         name="totalsegmentator_ct",
