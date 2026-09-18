@@ -70,8 +70,7 @@ class BoneHubDatasetIO:
         if not is_compatible_schema_version(dataset_info.schema_version):
             raise ValueError(
                 f"'{self.dataset_path.name}' was written with schema version "
-                f"{dataset_info.schema_version or '(not recorded)'}, but this is {__version__}. Label values "
-                "and status codes differ between them, so it would be read with the wrong meaning. "
+                f"{dataset_info.schema_version or '(not recorded)'}, but this is {__version__}. "
                 "Regenerate the dataset with the current converters."
             )
         return dataset_info
@@ -100,7 +99,6 @@ class BoneHubDatasetIO:
                 if not image_path.exists():
                     print(f"Image file {image_path} does not exist.")
                     return False
-            # Labels recorded as not available (origin 0) have no file to check.
             segmentation_path = self.get_segmentation_path(subject)
             if segmentation_path is not None and not segmentation_path.exists():
                 print(f"Segmentation file {segmentation_path} does not exist.")

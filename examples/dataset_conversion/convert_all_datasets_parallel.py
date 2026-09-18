@@ -1,7 +1,28 @@
+"""Convert the BoneHub public datasets listed in DATASET_JOBS, several at a time.
+
+Run from the repository root with the package installed (pip install -e ".[converter]")
+and the MAX_SUBJECTS_FOR_TESTING environment variable unset; see --help for all options.
+Each dataset writes a log into its Dataset_XXX folder.
+
+To regenerate segmentations, meshes and subject info but keep the exported images:
+1. In each Dataset_XXX folder keep Image/ and Subject_info_XXX.json, and delete
+   Segmentation/, Mesh/ and NURBS/.
+2. Convert one dataset and check its masks in 3D Slicer:
+
+       python examples/dataset_conversion/convert_all_datasets_parallel.py --output-root Z:/BoneHub/BoneHub_Dataset --skip-existing-images --datasets vsd_reconstruction
+
+3. Convert everything (sized for 32 GB of RAM):
+
+       python examples/dataset_conversion/convert_all_datasets_parallel.py --output-root Z:/BoneHub/BoneHub_Dataset --skip-existing-images --max-workers 3 --subject-workers 4
+
+4. Re-run examples/nurbs_conversion; NURBS surfaces are not produced here.
+"""
+
 from __future__ import annotations
 
 import argparse
-from concurrent.futures import ThreadPoolExecutor, as_completed
+import multiprocessing
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Sequence
@@ -93,7 +114,7 @@ def parse_args() -> argparse.Namespace:
         "--max-workers",
         type=int,
         default=len(DATASET_JOBS),
-        help="Maximum number of conversion threads to run at once.",
+        help="Maximum number of datasets converted at once, each in its own process.",
     )
     parser.add_argument(
         "--datasets",
@@ -107,6 +128,14 @@ def parse_args() -> argparse.Namespace:
         help="Overwrite existing output dataset folders if they already exist.",
     )
     parser.add_argument(
+        "--subject-workers",
+        type=int,
+        default=None,
+        help="Subjects converted at once within each dataset, each in its own process "
+        "(default: one per CPU core, at most 8). Up to max-workers x subject-workers processes run "
+        "together, each needing up to ~2 GB for the largest masks; lower it if memory runs out.",
+    )
+    parser.add_argument(
         "--quiet",
         action="store_true",
         help="Hide the per-dataset progress bars.",
@@ -114,11 +143,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--skip-existing-images",
         action="store_true",
-        help=(
-            "Keep images that were already exported and regenerate only segmentations, meshes and subject info. "
-            "An image is kept only if the previous Subject_info file shows it came from the same source subject. "
-            "Implies --overwrite."
-        ),
+        help="Keep exported images whose source subject is unchanged and regenerate everything else. "
+        "Implies --overwrite.",
     )
     return parser.parse_args()
 
@@ -131,13 +157,19 @@ def select_jobs(selected_names: Sequence[str] | None) -> list[DatasetJob]:
 
 
 def convert_dataset(
-    job: DatasetJob, output_root: Path, overwrite: bool, verbose: bool, skip_existing_images: bool = False
+    job: DatasetJob,
+    output_root: Path,
+    overwrite: bool,
+    verbose: bool,
+    skip_existing_images: bool = False,
+    subject_workers: int | None = None,
 ) -> str:
     dataset = job.dataset_class(job.source_root)
     dataset.export_to_bonehub_format(
         output_root=output_root,
         output_dataset_id=job.dataset_id,
         overwrite=overwrite or skip_existing_images,
+        num_workers=subject_workers,
         verbose=verbose,
         skip_existing_images=skip_existing_images,
     )
@@ -156,14 +188,22 @@ def main() -> int:
     output_root = args.output_root.resolve()
     print(f"Output root: {output_root}")
     print(f"Datasets queued: {', '.join(job.name for job in jobs)}")
-    print(f"Using up to {min(args.max_workers, len(jobs))} worker threads")
+    print(f"Converting up to {min(args.max_workers, len(jobs))} datasets at once")
 
     failures: list[tuple[DatasetJob, Exception]] = []
 
-    with ThreadPoolExecutor(max_workers=min(args.max_workers, len(jobs))) as executor:
+    # One process per dataset, so a crash in one does not stop the others.
+    context = multiprocessing.get_context("spawn")
+    with ProcessPoolExecutor(max_workers=min(args.max_workers, len(jobs)), mp_context=context) as executor:
         future_to_job = {
             executor.submit(
-                convert_dataset, job, output_root, args.overwrite, not args.quiet, args.skip_existing_images
+                convert_dataset,
+                job,
+                output_root,
+                args.overwrite,
+                not args.quiet,
+                args.skip_existing_images,
+                args.subject_workers,
             ): job
             for job in jobs
         }

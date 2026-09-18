@@ -8,7 +8,9 @@ from bonehub_data_schema import (
     LabelStatus,
     Origin,
     Review,
+    read_segmentation,
     read_segmentation_labels,
+    write_indexed_segmentation,
     write_segmentation,
 )
 
@@ -28,30 +30,65 @@ class TestSegmentationFile(unittest.TestCase):
         self.array[2:4, :4] = BoneLabelMap.FEMUR_PROXIMAL_CORTICAL_LEFT.value
         self.reference = sitk.GetImageFromArray(np.zeros(self.array.shape, dtype=np.int16))
 
-    def test_round_trip_keeps_voxels_names_and_statuses(self):
+    def test_round_trip(self):
         status = {
             BoneLabelMap.FEMUR_LEFT.value: LabelStatus.of(Origin.SOURCE, Review.EXPERT_ACCEPTED),
             BoneLabelMap.FEMUR_PROXIMAL_CORTICAL_LEFT.value: LabelStatus.of(Origin.BONEHUB_AUTOMATIC),
         }
-        written = write_segmentation(self.array, self.reference, self.tmp / "001_000001.seg.nrrd", status)
         path = self.tmp / "001_000001.seg.nrrd"
+        written = write_segmentation(self.array, self.reference, path, status)
 
-        self.assertEqual(read_segmentation_labels(path), written)
         self.assertEqual(written, {"FEMUR_LEFT": 33, "FEMUR_PROXIMAL_CORTICAL_LEFT": 10})
-        voxels = self.sitk.GetArrayFromImage(self.sitk.ReadImage(str(path)))
-        self.assertTrue(self.np.array_equal(voxels, self.array))
+        self.assertEqual(read_segmentation_labels(path), written)
+        bonehub = self.sitk.GetArrayFromImage(read_segmentation(path))
+        self.assertTrue(self.np.array_equal(bonehub, self.array))
+
+    def test_voxels_hold_small_segment_numbers(self):
+        path = self.tmp / "numbers.seg.nrrd"
+        write_segmentation(self.array, self.reference, path, LabelStatus.of(Origin.SOURCE))
+        image = self.sitk.ReadImage(str(path))
+        self.assertEqual(image.GetPixelID(), self.sitk.sitkUInt8)
+        self.assertEqual(sorted(self.np.unique(self.sitk.GetArrayViewFromImage(image))), [0, 1, 2])
+        header = {image.GetMetaData(f"Segment{i}_Name"): image.GetMetaData(f"Segment{i}_LabelValue") for i in range(2)}
+        self.assertEqual(header, {"FEMUR_LEFT": "1", "FEMUR_PROXIMAL_CORTICAL_LEFT": "2"})
+        # bounding boxes Slicer reads as x_min x_max y_min y_max z_min z_max
+        extents = {image.GetMetaData(f"Segment{i}_Name"): image.GetMetaData(f"Segment{i}_Extent") for i in range(2)}
+        self.assertEqual(extents, {"FEMUR_LEFT": "0 7 0 7 0 1", "FEMUR_PROXIMAL_CORTICAL_LEFT": "0 7 0 3 2 3"})
+
+    def test_more_than_255_segments_use_uint16(self):
+        values = [label.value for label in BoneLabelMap if label.value][:300]
+        array = self.np.zeros((1, 20, 20), dtype=self.np.int32)
+        array.flat[: len(values)] = values
+        path = self.tmp / "many.seg.nrrd"
+        write_segmentation(array, self.sitk.GetImageFromArray(array), path, LabelStatus.of(Origin.SOURCE))
+        self.assertEqual(self.sitk.ReadImage(str(path)).GetPixelID(), self.sitk.sitkUInt16)
+        self.assertTrue(self.np.array_equal(self.sitk.GetArrayFromImage(read_segmentation(path)), array))
+
+    def test_indexed_writer_skips_numbers_not_in_the_mask(self):
+        numbers = self.np.zeros((2, 4, 4), dtype=self.np.uint8)
+        numbers[0] = 2
+        values = [BoneLabelMap.TIBIA_LEFT.value, BoneLabelMap.FEMUR_LEFT.value]
+        path = self.tmp / "indexed.seg.nrrd"
+        written = write_indexed_segmentation(numbers, values, self.sitk.GetImageFromArray(numbers), path, LabelStatus(30))
+        self.assertEqual(written, {"FEMUR_LEFT": 30})
+        with self.assertRaises(ValueError):
+            write_indexed_segmentation(numbers, values * 2, self.sitk.GetImageFromArray(numbers), path, LabelStatus(30))
 
     def test_wrong_suffix_is_rejected(self):
         with self.assertRaises(ValueError):
             write_segmentation(self.array, self.reference, self.tmp / "001_000002.nii.gz", LabelStatus.of(Origin.SOURCE))
         self.assertEqual(list(self.tmp.iterdir()), [])
 
-    def test_segment_without_a_status_tag_reads_as_unknown(self):
-        image = self.sitk.GetImageFromArray(self.array)
-        image.SetMetaData("Segment0_Name", "FEMUR_LEFT")  # e.g. a segment added by hand in 3D Slicer
+    def test_segment_added_by_hand_in_slicer(self):
+        # no BoneHub tags: the status is unknown, and the label comes from the segment name
+        image = self.sitk.GetImageFromArray((self.array > 0).astype(self.np.uint8))
+        image.SetMetaData("Segment0_Name", "FEMUR_LEFT")
+        image.SetMetaData("Segment0_LabelValue", "1")
         path = self.tmp / "manual.seg.nrrd"
         self.sitk.WriteImage(image, str(path))
         self.assertEqual(read_segmentation_labels(path), {"FEMUR_LEFT": None})
+        bonehub = self.sitk.GetArrayFromImage(read_segmentation(path))
+        self.assertEqual(set(self.np.unique(bonehub)), {0, BoneLabelMap.FEMUR_LEFT.value})
 
 
 if __name__ == "__main__":

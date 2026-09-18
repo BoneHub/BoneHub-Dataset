@@ -7,7 +7,6 @@ from .label_status import LabelStatus
 
 _BONE_LABELS = BoneLabelMap.get_names_list()
 
-# The three per-label fields share one status type; see label_status.py.
 LabelKind = Literal["segmentation", "mesh", "nurbs"]
 
 
@@ -98,4 +97,4 @@ class SubjectInfo(BaseModel):
         if statuses is None:
             statuses = {}
             object.__setattr__(self, kind, statuses)
-        statuses[label] = int(value)  # stored as a plain int so the JSON stays a number
+        statuses[label] = int(value)

@@ -1,7 +1,4 @@
-"""How a label's segmentation, mesh or NURBS file came to be, and what checks it has had.
-
-SubjectInfo.segmentation, .mesh and .nurbs each map a BoneLabelMap name to a status. A
-status answers two independent questions, so it is stored as a two-digit integer:
+"""Status of a label's segmentation, mesh or NURBS file: who produced it and how it was checked.
 
     status = origin * 10 + review
 
@@ -12,12 +9,9 @@ status answers two independent questions, so it is stored as a two-digit integer
     3  original source dataset                  3  reviewed by human expert, accepted
     4  original source, corrected by BoneHub    4  reviewed by human expert, rejected
 
-So 33 is a source segmentation an expert verified, and 14 is a fully automatic BoneHub
-segmentation an expert rejected. Every combination is valid. With origin 0 the review is
-a check of the absence itself: 03 means an expert confirmed the structure is not there,
-and 04 means an expert found it present but not yet segmented.
-
-The same status type serves segmentations, meshes and NURBS.
+For example, 33 is a source segmentation an expert verified. Every combination is valid;
+with origin 0 the review checks the absence itself: 03 = confirmed absent, 04 = present
+but not yet segmented.
 """
 
 from enum import IntEnum
@@ -44,11 +38,7 @@ class Origin(_DescribedCode):
 
 
 class Review(_DescribedCode):
-    """The strongest check the file has had so far.
-
-    Codes rise with the authority of the check (none, automatic, human expert), so when a
-    file passes an automatic check and an expert then accepts it, record the expert.
-    """
+    """The strongest check so far; codes rise with authority (none < automatic < expert)."""
 
     NOT_REVIEWED = 0, "not reviewed"
     AUTOMATIC_PASSED = 1, "automatic check passed"
@@ -62,10 +52,7 @@ class Review(_DescribedCode):
 
 
 class LabelStatus(int):
-    """A status code that knows what it means.
-
-    It is a plain int (origin * 10 + review), so it is stored and compared as a number,
-    but constructing one validates the code and exposes its parts:
+    """A validated status code; a plain int that also exposes its parts.
 
         LabelStatus.of(Origin.SOURCE, Review.EXPERT_ACCEPTED)   # 33
         LabelStatus(14).review                                  # Review.EXPERT_REJECTED
@@ -73,7 +60,7 @@ class LabelStatus(int):
     """
 
     def __new__(cls, code: int):
-        # bool is an int subclass, and JSON true must not slip through as status 1
+        # bool is an int subclass: reject True/False explicitly
         if isinstance(code, bool) or not isinstance(code, int):
             raise ValueError(f"A label status must be an integer, got {code!r}.")
         origin, review = divmod(code, 10)

@@ -1,15 +1,10 @@
 """Reading and writing BoneHub segmentation masks (`.seg.nrrd`).
 
-The voxels hold global BoneLabelMap values as int32, so a mask means the same thing on
-its own. The NRRD header additionally names every segment, gives it a colour and records
-its LabelStatus - NIfTI has nowhere to store any of that. The header follows 3D Slicer's
-segmentation conventions, so Slicer opens the file with named, coloured segments.
+Voxels hold per-file segment numbers (1, 2, 3 ...; uint8, or uint16 above 255 segments), as
+in 3D Slicer's own segmentation files. The header maps each number to its BoneLabelMap
+label and records the segment's colour, bounding box and LabelStatus.
 
-The functions need numpy and SimpleITK, which the base install leaves out:
-
-    pip install "bonehub-dataset[io]"
-
-They are imported on first use, so importing this module never needs them.
+Requires numpy and SimpleITK: pip install "bonehub-dataset[io]".
 """
 
 from __future__ import annotations
@@ -27,8 +22,12 @@ if TYPE_CHECKING:
 
 SEGMENTATION_SUFFIX = ".seg.nrrd"
 
+# Slices processed at a time when relabelling, to limit memory.
+_CHUNK_SLICES = 32
+
 
 def _io_modules():
+    # Imported on use, so the base install (without numpy/SimpleITK) can import this module.
     try:
         import numpy
         import SimpleITK
@@ -39,11 +38,21 @@ def _io_modules():
     return numpy, SimpleITK
 
 
+def segment_number_dtype(number_of_segments: int):
+    """The smallest unsigned type that holds segment numbers 1..number_of_segments."""
+    np, _ = _io_modules()
+    if number_of_segments <= 255:
+        return np.uint8
+    if number_of_segments <= 65535:
+        return np.uint16
+    raise ValueError(f"{number_of_segments} segments in one mask; at most 65535 are supported.")
+
+
 def _segment_color(value: int) -> tuple[float, float, float]:
     """A stable colour per label: hue from the body region, shade from the finer fields."""
     region = value // 100_000_000
     structure = value // 100_000
-    tissue = min((value // 10) % 100, 4)  # shade only the defined compartments apart
+    tissue = (value // 10) % 100
     hue = ((region / 10.0) + (structure % 100) * 0.013) % 1.0
     saturation = 0.45 + ((structure // 100) % 5) * 0.09
     lightness = min(0.42 + tissue * 0.09, 0.78)
@@ -56,35 +65,69 @@ def write_segmentation(
     output_path: Path,
     status: LabelStatus | dict[int, LabelStatus],
 ) -> dict[str, LabelStatus]:
-    """Write a mask, naming every segment and recording its status in the header.
+    """Write a mask given as BoneLabelMap values.
 
-    array: voxel array of global BoneLabelMap values.
+    array: voxel array of BoneLabelMap values, 0 for background.
     reference_image: image whose geometry (spacing, origin, direction) the mask shares.
     output_path: destination, ending in `.seg.nrrd`.
-    status: one status for every label, or {BoneLabelMap value: status}. It is required
-        because a wrong default would silently misreport how the mask was made.
+    status: one status for every label, or {BoneLabelMap value: status}.
     Returns {label name: status} for the labels present in the mask.
+    """
+    np, _ = _io_modules()
+    array = np.asarray(array)
+    chunks = [slice(z, z + _CHUNK_SLICES) for z in range(0, array.shape[0], _CHUNK_SLICES)]
+
+    values = sorted({int(v) for c in chunks for v in np.unique(array[c])} - {0})
+    known = np.asarray(values, dtype=np.int64)
+    numbers = np.zeros(array.shape, dtype=segment_number_dtype(len(values)))
+    for c in chunks:
+        numbers[c] = np.where(array[c] != 0, np.searchsorted(known, array[c]) + 1, 0)
+    return write_indexed_segmentation(numbers, values, reference_image, output_path, status)
+
+
+def write_indexed_segmentation(
+    numbers: np.ndarray,
+    bonehub_values: list[int],
+    reference_image: sitk.Image,
+    output_path: Path,
+    status: LabelStatus | dict[int, LabelStatus],
+) -> dict[str, LabelStatus]:
+    """Write a mask whose voxels already hold segment numbers.
+
+    numbers: voxel array of segment numbers: 0 for background, k for bonehub_values[k - 1].
+    bonehub_values: the BoneLabelMap value of each segment number, without repeats.
+    The other arguments are as for write_segmentation. Numbers absent from the mask are
+    left out of the header.
     """
     np, sitk = _io_modules()
 
     output_path = Path(output_path)
     if not output_path.name.endswith(SEGMENTATION_SUFFIX):
         raise ValueError(f"A BoneHub segmentation file must end in '{SEGMENTATION_SUFFIX}': {output_path}")
+    if len(set(bonehub_values)) != len(bonehub_values):
+        raise ValueError("Each BoneLabelMap value may have only one segment number.")
 
-    image = sitk.GetImageFromArray(np.asarray(array).astype(np.int32))
+    image = sitk.GetImageFromArray(np.asarray(numbers, dtype=segment_number_dtype(len(bonehub_values))))
     image.CopyInformation(reference_image)
 
+    # Slicer loads a segmentation much faster when the header gives each segment's extent.
+    boxes = sitk.LabelShapeStatisticsImageFilter()
+    boxes.Execute(image)
+
     present = {}
-    for i, value in enumerate(int(v) for v in np.unique(array) if v != 0):
+    for i, number in enumerate(sorted(int(n) for n in boxes.GetLabels())):
+        value = int(bonehub_values[number - 1])
         label = BoneLabelMap(value)
         label_status = LabelStatus(status[value] if isinstance(status, dict) else status)
+        x, y, z, sx, sy, sz = boxes.GetBoundingBox(number)
         r, g, b = _segment_color(value)
         image.SetMetaData(f"Segment{i}_ID", label.name)
         image.SetMetaData(f"Segment{i}_Name", label.name)
         image.SetMetaData(f"Segment{i}_NameAutoGenerated", "0")
         image.SetMetaData(f"Segment{i}_Color", f"{r:.6f} {g:.6f} {b:.6f}")
         image.SetMetaData(f"Segment{i}_ColorAutoGenerated", "0")
-        image.SetMetaData(f"Segment{i}_LabelValue", str(value))
+        image.SetMetaData(f"Segment{i}_Extent", f"{x} {x + sx - 1} {y} {y + sy - 1} {z} {z + sz - 1}")
+        image.SetMetaData(f"Segment{i}_LabelValue", str(number))
         image.SetMetaData(f"Segment{i}_Layer", "0")
         image.SetMetaData(
             f"Segment{i}_Tags",
@@ -103,12 +146,41 @@ def write_segmentation(
     return present
 
 
-def read_segmentation_labels(path: Path) -> dict[str, LabelStatus | None]:
-    """Read {label name: status} from a mask header, without loading the voxels.
+def _tags(reader_or_image, i: int) -> dict[str, str]:
+    key = f"Segment{i}_Tags"
+    if not reader_or_image.HasMetaDataKey(key):
+        return {}
+    return dict(tag.split(":", 1) for tag in reader_or_image.GetMetaData(key).split("|") if ":" in tag)
 
-    A segment without a BoneHub status tag (for example one added by hand in 3D Slicer)
-    maps to None, since how it was made is unknown.
-    """
+
+def read_segmentation(path: Path) -> sitk.Image:
+    """Read a mask as an int32 image of BoneLabelMap values (0 for background)."""
+    np, sitk = _io_modules()
+    image = sitk.ReadImage(str(path))
+
+    value_of = {}
+    i = 0
+    while image.HasMetaDataKey(f"Segment{i}_LabelValue"):
+        number = int(image.GetMetaData(f"Segment{i}_LabelValue"))
+        tags, name = _tags(image, i), image.GetMetaData(f"Segment{i}_Name")
+        if "BoneHubValue" in tags:
+            value_of[number] = int(tags["BoneHubValue"])
+        elif name in BoneLabelMap.__members__:  # segment added in Slicer, without BoneHub tags
+            value_of[number] = BoneLabelMap[name].value
+        else:
+            raise ValueError(f"Segment '{name}' in '{path}' has no BoneHub label.")
+        i += 1
+
+    lookup = np.zeros(max(value_of, default=0) + 1, dtype=np.int32)
+    for number, value in value_of.items():
+        lookup[number] = value
+    result = sitk.GetImageFromArray(lookup[sitk.GetArrayViewFromImage(image)])
+    result.CopyInformation(image)
+    return result
+
+
+def read_segmentation_labels(path: Path) -> dict[str, LabelStatus | None]:
+    """Read {label name: status} from the header only. Segments without a BoneHub status map to None."""
     _, sitk = _io_modules()
 
     reader = sitk.ImageFileReader()
@@ -117,11 +189,7 @@ def read_segmentation_labels(path: Path) -> dict[str, LabelStatus | None]:
     labels = {}
     i = 0
     while reader.HasMetaDataKey(f"Segment{i}_Name"):
-        status = None
-        if reader.HasMetaDataKey(f"Segment{i}_Tags"):
-            for tag in reader.GetMetaData(f"Segment{i}_Tags").split("|"):
-                if tag.startswith("BoneHubStatus:"):
-                    status = LabelStatus(int(tag.split(":", 1)[1]))
-        labels[reader.GetMetaData(f"Segment{i}_Name")] = status
+        status = _tags(reader, i).get("BoneHubStatus")
+        labels[reader.GetMetaData(f"Segment{i}_Name")] = LabelStatus(int(status)) if status is not None else None
         i += 1
     return labels

@@ -5,8 +5,11 @@ import os
 import json
 import shutil
 import logging
+import logging.handlers
+import multiprocessing
 from typing import Callable
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ProcessPoolExecutor, as_completed
+import SimpleITK as sitk
 from tqdm import tqdm
 
 from bonehub_data_schema import (
@@ -19,6 +22,24 @@ from bonehub_data_schema import (
 )
 
 from .utils import FROM_SOURCE
+
+# Each worker process loads MONAI, torch and ITK (~0.4 GB), so keep the default modest.
+DEFAULT_MAX_WORKERS = 8
+
+
+def _init_subject_worker(log_queue, logger_name: str) -> None:
+    """Forward the worker's log records to the parent and keep ITK/torch single-threaded."""
+    logger = logging.getLogger(logger_name)
+    logger.handlers = [logging.handlers.QueueHandler(log_queue)]
+    logger.setLevel(logging.INFO)
+    logger.propagate = False
+    sitk.ProcessObject.SetGlobalDefaultNumberOfThreads(1)
+    try:
+        import torch
+
+        torch.set_num_threads(1)
+    except ImportError:
+        pass
 
 
 class DataSource(BaseModel):
@@ -83,13 +104,7 @@ class BaseDatasetIO:
         self._previous_sources: dict[int, str | None] = {}
 
     def _can_reuse_image(self, subject_id: int, sinfo: SubjectInfo, image_path: Path) -> bool:
-        """Whether an already exported image can be kept instead of converted again.
-
-        Subject ids follow the order a converter lists its subjects in, so an existing
-        001_000005 image is not necessarily this run's subject 5. The previous
-        Subject_info file records which source subject each id came from, and only a
-        match there makes it safe to keep the image.
-        """
+        """True if the existing image was made from the same source subject as this subject id."""
         if not self._skip_existing_images or not image_path.exists():
             return False
         previous = self._previous_sources.get(subject_id)
@@ -139,8 +154,6 @@ class BaseDatasetIO:
                 / f"{self.dataset_info.dataset_id:03d}_{data.subject_info.subject_id:06d}{SEGMENTATION_SUFFIX}"
             )
             self.custom_data_handlers.export_segmentation(data, export_file_path)
-            # The mask names its own segments and records how each was produced, so the
-            # header is the source of truth here rather than a scan of the voxel values.
             available_labels = read_segmentation_labels(export_file_path)
             for label_name, label_status in available_labels.items():
                 sinfo.set_segmentation_value(label_name, label_status)
@@ -150,8 +163,7 @@ class BaseDatasetIO:
             export_folder_path = (
                 dataset_path / "Mesh" / f"{self.dataset_info.dataset_id:03d}_{data.subject_info.subject_id:06d}"
             )
-            # The subject's mesh labels are read back from the file names below, so a file
-            # left in the folder by an earlier run would be recorded as if exported now.
+            # Labels are read back from the file names, so no file from an earlier run may remain.
             if export_folder_path.exists():
                 shutil.rmtree(export_folder_path)
             self.custom_data_handlers.export_mesh(data, export_folder_path)
@@ -180,14 +192,12 @@ class BaseDatasetIO:
         Args:
             output_root (Path): The root directory where the converted dataset will be saved.
             output_dataset_id (int): The dataset ID to assign to the exported dataset.
-            overwrite (bool): Whether to write into an existing dataset directory. Existing files are replaced as
-                subjects are exported; nothing is deleted up front. Default is False.
-            num_workers (int): The number of worker threads to use for parallel processing. Default is None, which uses the number of CPU cores.
+            overwrite (bool): Whether to write into an existing dataset directory. Default is False.
+            num_workers (int): Subjects converted at once, each in its own process. Default is None: the number of
+                CPU cores, at most DEFAULT_MAX_WORKERS.
             skip_existing_subjects (bool): only process subjects that have not been processed before (based on the existing subject_info JSON file). Default is False.
-            skip_existing_images (bool): keep images that were already exported instead of converting them again, while
-                segmentations, meshes and subject info are still regenerated. An image is kept only when the previous
-                Subject_info file shows it came from the same source subject; otherwise it is converted again.
-                Requires overwrite=True. Default is False.
+            skip_existing_images (bool): keep already exported images whose source subject is unchanged, and
+                regenerate everything else. Requires overwrite=True. Default is False.
             verbose (bool): show a progress bar. Default is True.
         """
         self.dataset_info.dataset_id = output_dataset_id
@@ -198,7 +208,6 @@ class BaseDatasetIO:
         subject_info_path = dataset_path / f"Subject_info_{self.dataset_info.dataset_id:03d}.json"
         log_file_path = dataset_path / f"Dataset_{output_dataset_id:03d}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
 
-        # Check before creating the directory, otherwise the check can never pass.
         if not overwrite and dataset_path.exists():
             raise FileExistsError(
                 f"Dataset directory '{dataset_path}' already exists. Please choose a different output_dataset_id, "
@@ -215,12 +224,11 @@ class BaseDatasetIO:
         self.logger.addHandler(log_handler)
         self.logger.setLevel(logging.INFO)
 
-        # Read which source subject each id came from before this run rewrites the file. Read it
-        # as plain JSON: a file from an older label or status scheme would not validate.
         self._skip_existing_images = skip_existing_images
         self._previous_sources = {}
         if skip_existing_images:
             if subject_info_path.exists():
+                # Plain JSON, not SubjectInfo: the file may predate the current schema.
                 with open(subject_info_path, "r") as f:
                     for subject in json.load(f):
                         if subject and subject.get("subject_id") is not None:
@@ -238,8 +246,6 @@ class BaseDatasetIO:
         subject_info = [None] * len(datalist)
         existing_subject_ids = set()
         if skip_existing_subjects and subject_info_path.exists():
-            # Subjects written under another schema would still validate, just with the wrong
-            # meaning, so the dataset's recorded version decides whether they can be kept.
             previous_version = None
             if dataset_info_path.exists():
                 with open(dataset_info_path, "r") as f:
@@ -269,31 +275,44 @@ class BaseDatasetIO:
             json.dump(self.dataset_info.sorted_dict(), f, indent=4)
         self.logger.info(f"Dataset info saved to '{dataset_info_path}'")
 
-        # Process subjects in parallel using ThreadPoolExecutor
+        # Worker processes are spawned, so scripts calling this need an `if __name__ == "__main__":` guard.
         if num_workers is None:
-            num_workers = os.cpu_count() or 4
-        with ThreadPoolExecutor(max_workers=num_workers) as executor:
-            # Submit all tasks
-            futures = {
-                executor.submit(self._process_subject, subject_id, data, dataset_path): subject_id - 1
-                for subject_id, data in enumerate(datalist, start=1)
-                if subject_id not in existing_subject_ids
-            }
-            progress_bar = tqdm(
-                as_completed(futures),
-                total=len(futures),
-                desc=f"Exporting Dataset_{self.dataset_info.dataset_id:03d}",
-                unit="subject",
-                disable=not verbose,
-            )
-            for future in progress_bar:
-                index = futures[future]
-                subject_info[index] = future.result()
-                with open(subject_info_path, "w") as f:
-                    json.dump(subject_info, f, indent=4)
-                self.logger.info(
-                    f"Updated {subject_info_path.name} ({sum(x is not None for x in subject_info)}/{len(subject_info)} subjects)"
+            num_workers = min(os.cpu_count() or 4, DEFAULT_MAX_WORKERS)
+        context = multiprocessing.get_context("spawn")
+        log_queue = context.Queue()
+        log_listener = logging.handlers.QueueListener(log_queue, log_handler)
+        log_listener.start()
+        try:
+            with ProcessPoolExecutor(
+                max_workers=num_workers,
+                mp_context=context,
+                initializer=_init_subject_worker,
+                initargs=(log_queue, self.logger.name),
+            ) as executor:
+                futures = {
+                    executor.submit(self._process_subject, subject_id, data, dataset_path): subject_id - 1
+                    for subject_id, data in enumerate(datalist, start=1)
+                    if subject_id not in existing_subject_ids
+                }
+                progress_bar = tqdm(
+                    as_completed(futures),
+                    total=len(futures),
+                    desc=f"Exporting Dataset_{self.dataset_info.dataset_id:03d}",
+                    unit="subject",
+                    disable=not verbose,
                 )
+                for future in progress_bar:
+                    index = futures[future]
+                    subject_info[index] = future.result()
+                    with open(subject_info_path, "w") as f:
+                        json.dump(subject_info, f, indent=4)
+                    self.logger.info(
+                        f"Updated {subject_info_path.name} ({sum(x is not None for x in subject_info)}/{len(subject_info)} subjects)"
+                    )
+        finally:
+            log_listener.stop()
+            self.logger.removeHandler(log_handler)
+            log_handler.close()
 
         self.logger.info(f"Finished exporting dataset to '{dataset_path}'. Total subjects exported: {len(subject_info)}.")
         self.logger.info(f"Log file saved to {log_file_path}")

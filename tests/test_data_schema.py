@@ -68,7 +68,6 @@ class TestSchemaVersion(unittest.TestCase):
         (folder / "Subject_info_001.json").write_text(json.dumps([{"image": False, "segmentation": {"FEMUR_LEFT": 30}}]))
 
     def test_dataset_from_another_schema_is_refused(self):
-        # its codes would still validate, just with the wrong meaning
         for old in (None, "0.1.0"):
             with self.subTest(schema_version=old), tempfile.TemporaryDirectory() as tmp:
                 self._write_dataset(Path(tmp), old)

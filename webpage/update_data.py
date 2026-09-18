@@ -48,11 +48,7 @@ DATASET_KEY_MAPPINGS = {
 
 
 def _format_labels(subject: SubjectInfo, kind: str) -> str:
-    """List the labels a downloader can actually use.
-
-    Subject info also records labels that are not available and ones that failed review;
-    neither belongs in an "Available" column.
-    """
+    """Labels with a file of this kind that has not failed review."""
     return "; ".join(sorted(subject.usable_labels(kind)))
 
 

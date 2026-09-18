@@ -22,7 +22,6 @@ if __name__ == "__main__":
     # find subjects that have segmentation of L4 or L5 lumbar vertebra and tibia
     filtered_subjects = []
     for subject in subjects:
-        # Subject info also lists labels that are not available or failed review; skip those.
         segmentations = "; ".join(subject.usable_labels("segmentation"))
         if (("L4" in segmentations) or ("L5" in segmentations)) and ("TIBIA" in segmentations):
             filtered_subjects.append(subject)
