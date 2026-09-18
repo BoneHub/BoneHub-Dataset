@@ -233,8 +233,6 @@ class BaseDatasetIO:
         self.dataset_info.schema_version = SCHEMA_VERSION
 
         dataset_path = output_root / f"Dataset_{self.dataset_info.dataset_id:03d}"
-        dataset_info_path = dataset_path / f"Dataset_info_{self.dataset_info.dataset_id:03d}.json"
-        subject_info_path = dataset_path / f"Subject_info_{self.dataset_info.dataset_id:03d}.json"
         log_file_path = dataset_path / f"Dataset_{output_dataset_id:03d}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
 
         if not overwrite and dataset_path.exists():
@@ -378,11 +376,12 @@ class BaseDatasetIO:
                         else:
                             self.logger.exception(f"Subject {subject_id} failed (source: '{source}').")
                         continue
-                    with open(subject_info_path, "w") as f:
-                        json.dump(subject_info, f, indent=4)
-                    self.logger.info(
-                        f"Updated {subject_info_path.name} ({sum(x is not None for x in subject_info)}/{len(subject_info)} subjects)"
-                    )
+                    if progress_bar.n % 10 == 0 or progress_bar.n == len(futures): # Update the subject_info JSON every 10 subjects or at the end
+                        with open(subject_info_path, "w") as f:
+                            json.dump(subject_info, f, indent=4)
+                        self.logger.info(
+                            f"Updated {subject_info_path.name} ({sum(x is not None for x in subject_info)}/{len(subject_info)} subjects)"
+                        )
         finally:
             log_listener.stop()
 
