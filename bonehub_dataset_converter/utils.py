@@ -7,9 +7,8 @@ import pydicom
 import pydicom_seg
 import SimpleITK as sitk
 
-from bonehub_data_schema import LabelStatus, Origin, write_segmentation
+from bonehub_data_schema import LabelStatus, Origin, segment_number_dtype, write_indexed_segmentation
 
-# Everything these converters export comes straight from the source dataset.
 FROM_SOURCE = LabelStatus.of(Origin.SOURCE)
 
 
@@ -66,12 +65,12 @@ def export_nii_segmentation(
     if len(input_label_paths) != len(label_mappings):
         raise ValueError("The number of input label paths must match the number of label mappings.")
 
-    combined_array = None
     ref_image = None
-
+    # (image, label array, mapping) on the reference grid; the image is kept alive because
+    # the array is a view of its memory.
+    sources = []
     for input_label_path, label_mapping in zip(input_label_paths, label_mappings):
         image = sitk.ReadImage(str(input_label_path))
-
         if ref_image is None:
             ref_image = image
         elif image.GetSize() != ref_image.GetSize() or image.GetOrigin() != ref_image.GetOrigin():
@@ -81,20 +80,46 @@ def export_nii_segmentation(
             resampler.SetInterpolator(sitk.sitkNearestNeighbor)
             resampler.SetDefaultPixelValue(0)
             image = resampler.Execute(image)
+        sources.append((image, _label_array(image, input_label_path), label_mapping))
 
-        array = sitk.GetArrayFromImage(image)
+    # Number the BoneHub labels present 1..N and map each source label straight to its number.
+    present = set()
+    for _, array, label_mapping in sources:
+        present.update(label_mapping[v] for v in _unique_labels(array) if label_mapping.get(v))
+    bonehub_values = sorted(present)
+    number_of = {value: n for n, value in enumerate(bonehub_values, start=1)}
+    dtype = segment_number_dtype(len(bonehub_values))
 
-        if combined_array is None:
-            combined_array = np.zeros(array.shape, dtype=np.int32)
-
-        mapped_array = np.zeros(array.shape, dtype=np.int32)
+    numbers = None
+    for _, array, label_mapping in sources:
+        lookup = np.zeros(max(int(array.max()), max(label_mapping)) + 1, dtype=dtype)
         for orig_label, bonehub_label in label_mapping.items():
-            mapped_array[array == orig_label] = bonehub_label
+            if bonehub_label in number_of:
+                lookup[orig_label] = number_of[bonehub_label]
+        mapped = lookup[array]
+        # Non-zero voxels from later files overwrite earlier ones
+        if numbers is None:
+            numbers = mapped
+        else:
+            np.copyto(numbers, mapped, where=mapped != 0)
+        del mapped
 
-        # Non-zero voxels from this file overwrite the combined array
-        combined_array[mapped_array != 0] = mapped_array[mapped_array != 0]
+    return write_indexed_segmentation(numbers, bonehub_values, ref_image, output_label_path, status)
 
-    return write_segmentation(combined_array, ref_image, output_label_path, status)
+
+def _label_array(image: sitk.Image, path: Path) -> np.ndarray:
+    """The image's labels as a non-negative integer array (a view when already integer)."""
+    array = sitk.GetArrayViewFromImage(image)
+    if not np.issubdtype(array.dtype, np.integer):  # some sources store masks as floats
+        array = np.rint(array).astype(np.int32)
+    if array.min() < 0:
+        raise ValueError(f"Negative label values in '{path}'.")
+    return array
+
+
+def _unique_labels(array: np.ndarray, slices: int = 32) -> set[int]:
+    """Distinct values in a large array, computed a block of slices at a time."""
+    return {int(v) for z in range(0, array.shape[0], slices) for v in np.unique(array[z : z + slices])}
 
 
 def export_dicom_segmentation(
@@ -118,17 +143,22 @@ def export_dicom_segmentation(
     seg_reader = pydicom_seg.MultiClassReader()
     seg_result = seg_reader.read(seg_dcm)
     seg_image = seg_result.image
-    seg_array = sitk.GetArrayFromImage(seg_image)
+    seg_array = _label_array(seg_image, input_label_path)
 
-    # Map original labels to BoneHub labels
-    seg_array_mapped = np.zeros(shape=seg_array.shape, dtype=np.int32)
-    for orig_label in seg_result.segment_infos.keys():
-        seg_label_name = getattr(seg_result.segment_infos[orig_label], dicom_segment_key, None)
+    # Map each DICOM segment to a BoneHub segment number 1..N
+    bonehub_of = {}
+    for orig_label, info in seg_result.segment_infos.items():
+        seg_label_name = getattr(info, dicom_segment_key, None)
         if seg_label_name is None:
             raise ValueError(f"Segment info for label {orig_label} does not contain key '{dicom_segment_key}'.")
-        seg_array_mapped[seg_array == orig_label] = label_mapping[seg_label_name]
+        bonehub_of[orig_label] = label_mapping[seg_label_name]
+    bonehub_values = sorted(set(bonehub_of.values()))
+    number_of = {value: n for n, value in enumerate(bonehub_values, start=1)}
+    lookup = np.zeros(max(int(seg_array.max()), max(bonehub_of)) + 1, dtype=segment_number_dtype(len(bonehub_values)))
+    for orig_label, bonehub_label in bonehub_of.items():
+        lookup[orig_label] = number_of[bonehub_label]
 
-    seg_image_mapped = sitk.GetImageFromArray(seg_array_mapped)
+    seg_image_mapped = sitk.GetImageFromArray(lookup[seg_array])
     seg_image_mapped.CopyInformation(seg_image)
 
     # Read the reference image series with SimpleITK (preserves LPS orientation)
@@ -144,7 +174,9 @@ def export_dicom_segmentation(
     resampler.SetDefaultPixelValue(0)
     seg_resampled = resampler.Execute(seg_image_mapped)
 
-    return write_segmentation(sitk.GetArrayFromImage(seg_resampled), seg_resampled, output_label_path, status)
+    return write_indexed_segmentation(
+        sitk.GetArrayViewFromImage(seg_resampled), bonehub_values, seg_resampled, output_label_path, status
+    )
 
 
 def get_dicom_subject_metadata(dicom_folder: str) -> dict:

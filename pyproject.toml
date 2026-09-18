@@ -15,15 +15,13 @@ authors = [
 # The base install carries the data schema only: `bonehub_data_schema` needs nothing but
 # pydantic, so downstream projects that merely read or write BoneHub metadata (such as
 # the quality-check server) can depend on this package without pulling in torch, monai,
-# ITK and the rest of the conversion stack. Reading and writing the segmentation files
-# themselves needs the small `io` extra; everything heavier lives in the extras below.
+# ITK and the rest of the conversion stack. Everything heavier lives in an extra below.
 dependencies = [
     "pydantic>=2.0",
 ]
 
 [project.optional-dependencies]
-# Reading and writing BoneHub segmentation files (.seg.nrrd) with
-# bonehub_data_schema.write_segmentation / read_segmentation_labels.
+# Reading and writing BoneHub segmentation files (.seg.nrrd).
 io = [
     "numpy",
     "SimpleITK",

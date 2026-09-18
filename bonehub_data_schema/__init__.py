@@ -7,7 +7,14 @@ from .labelmap import BoneLabelMap, bonehub_to_snomed
 from .label_status import LabelStatus, Origin, Review
 from .subject_info import SubjectInfo
 from .dataset_info import DatasetInfo
-from .segmentation_file import SEGMENTATION_SUFFIX, write_segmentation, read_segmentation_labels
+from .segmentation_file import (
+    SEGMENTATION_SUFFIX,
+    segment_number_dtype,
+    write_segmentation,
+    write_indexed_segmentation,
+    read_segmentation,
+    read_segmentation_labels,
+)
 from .bonehub_dataset_io import BoneHubDatasetIO
 
 
@@ -21,7 +28,10 @@ __all__ = [
     "bonehub_to_snomed",
     "BoneHubDatasetIO",
     "SEGMENTATION_SUFFIX",
+    "segment_number_dtype",
     "write_segmentation",
+    "write_indexed_segmentation",
+    "read_segmentation",
     "read_segmentation_labels",
     "is_compatible_schema_version",
 ]

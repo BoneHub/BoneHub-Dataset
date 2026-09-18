@@ -92,16 +92,21 @@ BoneHub Dataset/
 
 ### Segmentation files
 
-Masks are stored as `.seg.nrrd` (int32). Each voxel holds a **global** `BoneLabelMap`
-value, so a mask means the same thing everywhere and can be read without any sidecar:
+Masks are stored as `.seg.nrrd`, 3D Slicer's segmentation format. Voxels hold per-file
+segment numbers (1, 2, 3 ...), and the header maps each number to its `BoneLabelMap` label
+and records its colour, bounding box and status. Open them in 3D Slicer as a
+**Segmentation**; in Python, `read_segmentation` returns the mask as `BoneLabelMap` values:
 
 ```python
 import SimpleITK as sitk, numpy as np
-from bonehub_data_schema import BoneLabelMap
+from bonehub_data_schema import BoneLabelMap, read_segmentation  # needs the [io] extra
 
-arr = sitk.GetArrayFromImage(sitk.ReadImage("001_000001.seg.nrrd"))
+mask = read_segmentation("001_000001.seg.nrrd")  # SimpleITK image of BoneLabelMap values
+arr = sitk.GetArrayViewFromImage(mask)
 print([BoneLabelMap(v).name for v in np.unique(arr) if v])
 ```
+
+The values are int32; do not cast them to float32, which cannot hold 9-digit values exactly.
 
 The label value is built from four independent fields, so a bone, a sub-part, a tissue
 compartment and a side each occupy their own digits:
@@ -121,9 +126,7 @@ Every value has 9 digits (4 + 2 + 2 + 1), except `BACKGROUND = 0`.
 Use `structure_of`, `part_of`, `tissue_of` and `side_of` from `bonehub_data_schema.labelmap`
 to group labels — e.g. every left-femur label is `structure_of(v) == 7100 and side_of(v) == 1`.
 
-The NRRD header additionally names every segment and records its **status** — the same
-code used in `Subject_info_XXX.json` — which is why this format is used rather than
-NIfTI, since NIfTI has nowhere to store it:
+The header also records each segment's **status**, the same code as in `Subject_info_XXX.json`:
 
 ```python
 from bonehub_data_schema import read_segmentation_labels  # needs the [io] extra
@@ -133,8 +136,8 @@ read_segmentation_labels("001_000001.seg.nrrd")
 
 ### Label status values
 
-Every label in a subject's `segmentation`, `mesh` and `nurbs` entries carries a status. It
-answers two independent questions, so it has two digits: `status = origin * 10 + review`.
+Every label in a subject's `segmentation`, `mesh` and `nurbs` entries carries a status,
+`status = origin * 10 + review`:
 
 | origin (tens) — who produced the file | | review (units) — the strongest check so far | |
 |---|---|---|---|
@@ -144,13 +147,12 @@ answers two independent questions, so it has two digits: `status = origin * 10 +
 | 3 | original source dataset | 3 | reviewed by human expert, accepted |
 | 4 | original source, corrected by BoneHub | 4 | reviewed by human expert, **rejected** |
 
-So `33` is a source segmentation an expert verified, and `14` is a fully automatic BoneHub
-segmentation an expert rejected. Every combination is valid; with origin `0` the review is
-a check of the absence itself — `03` means an expert confirmed the structure is not there,
-`04` that it is there but not yet segmented.
+For example, `33` is a source segmentation an expert verified. Every combination is valid;
+with origin `0` the review checks the absence itself: `03` = confirmed absent, `04` = present
+but not yet segmented.
 
-Rejected and failed files are kept rather than deleted, so you can see what was checked.
-`LabelStatus` gives the meaning of a code, and `SubjectInfo` filters by it:
+Rejected and failed files are kept, so filter by status. `LabelStatus` gives the meaning of
+a code, and `SubjectInfo` filters by it:
 
 ```python
 from bonehub_data_schema import LabelStatus, Origin, Review
@@ -161,10 +163,6 @@ LabelStatus.of(Origin.SOURCE, Review.EXPERT_ACCEPTED)    # 33
 
 subject.usable_labels("segmentation")                    # labels with a file that has not failed review
 ```
-
-Open these files in 3D Slicer as a **Segmentation**, which picks up the segment names and
-colours from the header. Loading them as a plain LabelMapVolume is not recommended: the label
-values are large, and a volume colour table may be sized to the maximum value.
 
 ## Custom Dataset Conversion Guide
 
@@ -179,16 +177,18 @@ from bonehub_dataset_converter.custom_dataset_io import SpineMetsCTSeg
 
 data_root = Path("path/to/dataset/root/folder")
 output_root = Path("path/to/output/root/folder")
-dataset = SpineMetsCTSeg(dataset_root=data_root)
-dataset.export_to_bonehub_format(output_root, output_dataset_id=1, overwrite=False)
+
+# The guard is required: subjects are converted in worker processes that re-import this script.
+if __name__ == "__main__":
+    dataset = SpineMetsCTSeg(dataset_root=data_root)
+    dataset.export_to_bonehub_format(output_root, output_dataset_id=1, overwrite=False)
 ```
 
 ### Schema versions
 
-Each `Dataset_info_XXX.json` records the `schema_version` it was written with. Label values
-and status codes are plain integers, so a dataset written under another version would not
-fail to load — it would be read with the wrong meaning. `BoneHubDatasetIO` therefore refuses
-a dataset whose version differs in its major or minor number; regenerate it instead.
+Each `Dataset_info_XXX.json` records the `schema_version` it was written with.
+`BoneHubDatasetIO` refuses a dataset whose major or minor version differs from the installed
+schema, because its label values and status codes may mean something else; regenerate it instead.
 
 ### Regenerating a dataset without re-converting its images
 
@@ -199,10 +199,8 @@ map change), keep the images that are already exported:
 dataset.export_to_bonehub_format(output_root, output_dataset_id=1, overwrite=True, skip_existing_images=True)
 ```
 
-An image is kept only when the previous `Subject_info_XXX.json` shows it was made from the
-same source subject (`source_subject_path`). Subject ids follow the order a converter lists
-its subjects in, so if that order has changed, the affected images are converted again rather
-than being paired with the wrong segmentation. For all datasets at once:
+An image is reused only if the previous `Subject_info_XXX.json` shows it was made from the
+same source subject; otherwise it is converted again. For all datasets at once:
 
 ```bash
 python examples/dataset_conversion/convert_all_datasets_parallel.py --output-root <root> --skip-existing-images

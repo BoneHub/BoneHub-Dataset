@@ -22,11 +22,8 @@ class BoneLabelMap(Enum):
                      +--------------------- structure  RSMM, see the blocks below
 
     Every value therefore has 9 digits (4 + 2 + 2 + 1), apart from BACKGROUND = 0.
-
-    Because every facet has its own digits, a voxel never needs to belong to two
-    labels at once: the proximal cortical shell of the left femur is one value,
-    7100_01_01_1 = 710001011, and the whole femur is recoverable as
-    structure_of(v) == 7100.
+    E.g. the proximal cortical shell of the left femur is 7100_01_01_1 = 710001011,
+    and every femur label has structure_of(v) == 7100.
 
     structure = R S M M
         R  region:      1 head, 2 spine, 3 thorax, 4 shoulder+arm, 5 hand,
@@ -36,11 +33,10 @@ class BoneLabelMap(Enum):
     Structures with S = 0 and MM > 0 are groups spanning several families of their
     region, e.g. PRESACRAL_SPINE and AXIAL_SKELETON.
 
-    part codes.  A structure's parts always partition it: every voxel of a bone
-    belongs to exactly one of its parts, so a mask labelled by parts still rolls up
-    to the whole bone with structure_of.  Landmarks that would overlap a part
-    (heads, necks, condyles, trochanters, processes, the acetabulum) are therefore
-    deliberately not labels.
+    part codes.  A structure's parts partition it, so a mask labelled by parts rolls
+    up to the whole bone with structure_of.  Landmarks that would overlap a part
+    (the femoral head, necks, condyles, trochanters, processes, the acetabulum) are
+    not labels.
         00        WHOLE
         01..09    segments along a bone
                   01 PROXIMAL  02 SHAFT  03 DISTAL        long bones (thirds)
@@ -57,8 +53,7 @@ class BoneLabelMap(Enum):
         90..99    project-specific / experimental, never published as canonical
 
     A part name has exactly one code wherever it is used.  Short tubular bones use
-    BASE / SHAFT / HEAD, the terms their anatomy and fracture classifications use,
-    and ones that do not clash with a phalanx's own PROXIMAL / MIDDLE / DISTAL.
+    BASE / SHAFT / HEAD, which do not clash with a phalanx's PROXIMAL / MIDDLE / DISTAL.
 
     Naming follows the value: STRUCTURE[_PART][_TISSUE][_SIDE].
     A name with no side suffix means "side not distinguished" (a midline bone, or
@@ -77,39 +72,32 @@ class BoneLabelMap(Enum):
         PHALANGES_FOOT            every phalanx of the foot
         PHALANGES_FOOT_1          every phalanx of the big toe (all of digit 1)
         PHALANX_FOOT_1_PROXIMAL   one bone: the proximal phalanx of the big toe
-    In the structure id MM is digit*10 + position (1 proximal, 2 middle, 3 distal),
-    so position 0 is free to mean "the whole digit".
+    In the structure id, MM = digit*10 + position (1 proximal, 2 middle, 3 distal;
+    0 = the whole digit).
 
     Each extremity includes its girdle: UPPER_EXTREMITY the SHOULDER_GIRDLE
     (clavicle + scapula), LOWER_EXTREMITY the hip bone.  The sacrum and coccyx are
     axial, so they belong to VERTEBRAL_COLUMN and PELVIS but not to LOWER_EXTREMITY.
 
     Sesamoids: the patella, the pisiform (counted as a carpal) and the fabella have
-    their own labels.  Of the hand and foot sesamoids, only those present in nearly
-    everyone are labelled individually - the two at the thumb MCP joint and the two
-    under the head of the 1st metatarsal; variable ones fall under SESAMOIDS_HAND /
-    SESAMOIDS_FOOT.  They are named SESAMOID_<HAND|FOOT>_<d>_<joint>_<which>, with
-    the clinical terms RADIAL / ULNAR (hand) and TIBIAL / FIBULAR (foot), which also
-    keep MEDIAL / LATERAL free as part names.  As for phalanges, MM in the structure
-    id is digit*10 + k, and SESAMOIDS_<HAND|FOOT>_<d> groups one digit's sesamoids.
+    their own labels.  Of the hand and foot sesamoids, only the constant pairs are
+    labelled individually - two at the thumb MCP joint (RADIAL / ULNAR) and two under
+    the 1st metatarsal head (TIBIAL / FIBULAR), grouped as SESAMOIDS_HAND_1 /
+    SESAMOIDS_FOOT_1; variable ones fall under SESAMOIDS_HAND / SESAMOIDS_FOOT.
 
-    Tissue variants are spelled out below only where cortical/trabecular work is
-    actually done: the six long bones (whole and thirds), every vertebra (whole and
-    body; C1 whole only), the hip bone (whole, ilium, ischium, pubis), and the
-    sacrum, coccyx, sternum, clavicle, scapula, patella, talus, calcaneus, mandible
-    and maxilla.  MEDULLARY_CAVITY exists only on the six long bones: other bones
-    hold their marrow in trabecular bone, without a medullary cavity.  Every other
-    combination the layout allows - say the trabecular core of a metacarpal shaft -
-    is a single line to add, and adding it moves no existing value.
+    Tissue variants are listed only where cortical/trabecular segmentation is done:
+    the six long bones (whole and thirds), every vertebra (whole and body; C1 whole
+    only), the hip bone (whole, ilium, ischium, pubis), and the sacrum, coccyx,
+    sternum, clavicle, scapula, patella, talus, calcaneus, mandible and maxilla.
+    MEDULLARY_CAVITY exists only on the six long bones.  Any other combination, e.g.
+    the trabecular core of a metacarpal shaft, is one line to add and moves no
+    existing value.
 
-    NOTE ON STORAGE: values can reach 999_999_999, so masks need int32.  They are
-    NOT exactly representable in float32 - never read a mask with a float32 cast,
-    and prefer integer reads (np.asanyarray(img.dataobj)) over get_fdata().
-
-    How a segmentation was produced and reviewed (its LabelStatus, see
-    label_status.py) is deliberately NOT part of the value: the same bone must
-    carry the same number however it was made.  Status lives in the per-segment
-    header of the mask file and in Subject_info_XXX.json.
+    Mask files store per-file segment numbers, mapped to these values in their header
+    (see segmentation_file.py).  Arrays of these values need int32: they reach
+    999_999_999, which float32 cannot represent exactly.  How a label was produced
+    and reviewed (its LabelStatus) is not part of the value; it is recorded in the
+    mask header and in Subject_info_XXX.json.
     """
 
     ## 0xxx - background
@@ -1753,9 +1741,6 @@ class BoneLabelMap(Enum):
     @classmethod
     def get_names_list(cls):
         return [label.name for label in cls]
-
-
-# The four fields of a label value, for callers that need to group or roll up labels.
 
 
 def structure_of(value: int) -> int:
