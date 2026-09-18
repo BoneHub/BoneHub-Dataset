@@ -15,6 +15,9 @@ class DatasetInfo(BaseModel):
     remarks: str | None = Field(None, description="Remarks about the dataset")
     modality: str | None = Field(None, description="Imaging modality used (e.g., CT, MRI)")
     license: str | None = Field(None, description="License of the dataset")
+    schema_version: str | None = Field(
+        None, description="bonehub_data_schema version the dataset was written with; set by the converter"
+    )
 
     model_config = ConfigDict(validate_assignment=True, strict=True)
 
