@@ -95,9 +95,9 @@ class BoneLabelMap(Enum):
 
     Mask files store per-file segment numbers, mapped to these values in their header
     (see segmentation_file.py).  Arrays of these values need int32: they reach
-    999_999_999, which float32 cannot represent exactly.  How a label was produced
-    and reviewed (its LabelStatus) is not part of the value; it is recorded in the
-    mask header and in Subject_info_XXX.json.
+    999_999_999, which float32 cannot represent exactly.  Whether a label was
+    reviewed (its label status) is not part of the value; it is recorded in
+    Subject_info_XXX.json.
     """
 
     ## 0xxx - background

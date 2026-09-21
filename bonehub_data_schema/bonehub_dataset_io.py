@@ -146,7 +146,7 @@ class BoneHubDatasetIO:
         # TODO: write tests for this function
         if subject.mesh:
             mesh_paths = {}
-            for label in subject.mesh:
+            for label in subject.available_labels("mesh"):
                 mesh_paths[label] = (
                     self.dataset_path
                     / "Mesh"
@@ -159,7 +159,7 @@ class BoneHubDatasetIO:
         # TODO: write tests for this function
         if subject.nurbs:
             nurbs_paths = {}
-            for label in subject.nurbs:
+            for label in subject.available_labels("nurbs"):
                 nurbs_paths[label] = (
                     self.dataset_path
                     / "NURBS"

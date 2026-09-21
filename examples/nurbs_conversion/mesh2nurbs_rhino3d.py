@@ -26,7 +26,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from bonehub_data_schema import BoneHubDatasetIO, BoneLabelMap, LabelStatus, Origin
+from bonehub_data_schema import BoneHubDatasetIO, BoneLabelMap
 from bonehub_data_schema.labelmap import structure_of
 
 DEFAULT_DATASET_ROOT = Path("Z:/BoneHub/BoneHub_Dataset")
@@ -92,7 +92,7 @@ def convert_dataset(dataset_root: Path, dataset_id: int, args: argparse.Namespac
             copy_path = dataset.dataset_path / "NURBS" / mesh_path.parent.name / (mesh_path.stem + ".iges")
             if copy_path.exists() and not args.overwrite:
                 print(f"NURBS surface already exists at `{copy_path}`. Skipping generation.")
-                sub.set_nurbs_value(bonename, LabelStatus.of(Origin.BONEHUB_AUTOMATIC))
+                sub.set_nurbs_value(bonename, 1)
                 continue
 
             # The CLI writes <stem>.iges next to the input mesh, so run it on a copy in a
@@ -115,7 +115,7 @@ def convert_dataset(dataset_root: Path, dataset_id: int, args: argparse.Namespac
                 copy_path.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copyfile(output_file_path, copy_path)
                 print(f"Successfully created NURBS surface at `{copy_path}`.")
-                sub.set_nurbs_value(bonename, LabelStatus.of(Origin.BONEHUB_AUTOMATIC))
+                sub.set_nurbs_value(bonename, 1)
 
     if args.dry_run:
         return failures
