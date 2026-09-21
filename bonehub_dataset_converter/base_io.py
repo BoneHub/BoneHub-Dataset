@@ -339,6 +339,14 @@ class BaseDatasetIO:
         log_listener = logging.handlers.QueueListener(log_queue, log_handler)
         log_listener.start()
         failed_subject_ids = []
+
+        def save_subject_info():
+            with open(subject_info_path, "w") as f:
+                json.dump(subject_info, f, indent=4)
+            self.logger.info(
+                f"Updated {subject_info_path.name} ({sum(x is not None for x in subject_info)}/{len(subject_info)} subjects)"
+            )
+
         try:
             with ProcessPoolExecutor(
                 max_workers=num_workers,
@@ -358,6 +366,7 @@ class BaseDatasetIO:
                     unit="subject",
                     disable=not verbose,
                 )
+                converted_count = 0
                 for future in progress_bar:
                     index = futures[future]
                     subject_id = index + 1
@@ -376,12 +385,10 @@ class BaseDatasetIO:
                         else:
                             self.logger.exception(f"Subject {subject_id} failed (source: '{source}').")
                         continue
-                    if progress_bar.n % 10 == 0 or progress_bar.n == len(futures): # Update the subject_info JSON every 10 subjects or at the end
-                        with open(subject_info_path, "w") as f:
-                            json.dump(subject_info, f, indent=4)
-                        self.logger.info(
-                            f"Updated {subject_info_path.name} ({sum(x is not None for x in subject_info)}/{len(subject_info)} subjects)"
-                        )
+                    converted_count += 1
+                    if converted_count % 10 == 0:  # Write every 10 subjects instead of on every one, to spare the disk.
+                        save_subject_info()
+                save_subject_info()  # Final write, so the last subjects and any failures are recorded too.
         finally:
             log_listener.stop()
 
