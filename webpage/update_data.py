@@ -48,8 +48,8 @@ DATASET_KEY_MAPPINGS = {
 
 
 def _format_labels(subject: SubjectInfo, kind: str) -> str:
-    """Labels with a file of this kind that has not failed review."""
-    return "; ".join(sorted(subject.usable_labels(kind)))
+    """Labels with a file of this kind."""
+    return "; ".join(sorted(subject.available_labels(kind)))
 
 
 def _collect_data(dataset_root: Path, excluded_dataset_ids: set[int] | None = None) -> tuple[list[dict], list[dict]]:

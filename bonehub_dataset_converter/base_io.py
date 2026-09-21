@@ -22,7 +22,6 @@ from bonehub_data_schema import (
     __version__ as SCHEMA_VERSION,
 )
 
-from .utils import FROM_SOURCE
 
 # Each worker process loads MONAI, torch and ITK (~0.4 GB), so keep the default modest.
 DEFAULT_MAX_WORKERS = 8
@@ -179,8 +178,8 @@ class BaseDatasetIO:
             )
             self.custom_data_handlers.export_segmentation(data, export_file_path)
             available_labels = read_segmentation_labels(export_file_path)
-            for label_name, label_status in available_labels.items():
-                sinfo.set_segmentation_value(label_name, label_status)
+            for label_name in available_labels:
+                sinfo.set_segmentation_value(label_name, 1)
             self.logger.info(f"Exported {len(available_labels)} segmentation labels to '{export_file_path}'")
         if data.mesh_path:
             os.makedirs(dataset_path / "Mesh", exist_ok=True)
@@ -194,7 +193,7 @@ class BaseDatasetIO:
             available_meshes = [mesh_file.stem for mesh_file in export_folder_path.glob("*.stl")]
             for mesh_name in available_meshes:
                 mesh_name = mesh_name.replace(export_folder_path.name + "_", "")
-                sinfo.set_mesh_value(mesh_name, FROM_SOURCE)
+                sinfo.set_mesh_value(mesh_name, 1)
             self.logger.info(f"Exported {len(available_meshes)} meshes to '{export_folder_path}'")
         if data.nurbs_path:
             raise NotImplementedError("NURBS export is not implemented yet.")

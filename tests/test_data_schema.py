@@ -24,15 +24,15 @@ class TestSubjectInfo(unittest.TestCase):
             age=30,
             image=False,
             gender="F",
-            segmentation={"FEMUR_LEFT": 30},
+            segmentation={"FEMUR_LEFT": 1},
         )
         self.assertEqual(subject_info.gender, "F")
         with self.assertRaises(ValueError):
-            subject_info.set_segmentation_value("NOT_A_BONE", 30)
+            subject_info.set_segmentation_value("NOT_A_BONE", 1)
         with self.assertRaises(ValueError):
             subject_info.gender = "male"
         with self.assertRaises(ValueError):
-            subject_info.segmentation = {"FEMUR_LEFT": 55}  # origin 5 and review 5 do not exist
+            subject_info.segmentation = {"FEMUR_LEFT": 30}  # a status code from schema 0.2
 
 
 class TestDatasetInfo(unittest.TestCase):
@@ -65,10 +65,10 @@ class TestSchemaVersion(unittest.TestCase):
         if schema_version is not None:
             info["schema_version"] = schema_version
         (folder / "Dataset_info_001.json").write_text(json.dumps(info))
-        (folder / "Subject_info_001.json").write_text(json.dumps([{"image": False, "segmentation": {"FEMUR_LEFT": 30}}]))
+        (folder / "Subject_info_001.json").write_text(json.dumps([{"image": False, "segmentation": {"FEMUR_LEFT": 1}}]))
 
     def test_dataset_from_another_schema_is_refused(self):
-        for old in (None, "0.1.0"):
+        for old in (None, "0.1.0", "0.2.0"):
             with self.subTest(schema_version=old), tempfile.TemporaryDirectory() as tmp:
                 self._write_dataset(Path(tmp), old)
                 with self.assertRaises(ValueError):

@@ -4,7 +4,7 @@ BoneHub Data Schema - Standard data structures and constants for BoneHub project
 
 from ._version import __version__, is_compatible_schema_version
 from .labelmap import BoneLabelMap, bonehub_to_snomed
-from .label_status import LabelStatus, Origin, Review
+from .label_status import VALID_LABEL_VALUES
 from .subject_info import SubjectInfo
 from .dataset_info import DatasetInfo
 from .segmentation_file import (
@@ -20,9 +20,7 @@ from .bonehub_dataset_io import BoneHubDatasetIO
 
 __all__ = [
     "BoneLabelMap",
-    "LabelStatus",
-    "Origin",
-    "Review",
+    "VALID_LABEL_VALUES",
     "SubjectInfo",
     "DatasetInfo",
     "bonehub_to_snomed",

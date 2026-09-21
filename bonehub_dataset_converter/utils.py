@@ -7,9 +7,7 @@ import pydicom
 import pydicom_seg
 import SimpleITK as sitk
 
-from bonehub_data_schema import LabelStatus, Origin, segment_number_dtype, write_indexed_segmentation
-
-FROM_SOURCE = LabelStatus.of(Origin.SOURCE)
+from bonehub_data_schema import segment_number_dtype, write_indexed_segmentation
 
 
 def export_image_monai(input_image_path: Path, output_image_path: Path):
@@ -52,7 +50,6 @@ def export_nii_segmentation(
     input_label_paths: list[Path],
     output_label_path: Path,
     label_mappings: list[dict],
-    status: LabelStatus | dict[int, LabelStatus] = FROM_SOURCE,
 ):
     """
     Converts one or more NIfTI segmentation files to BoneHub standardized labels and saves the result.
@@ -60,7 +57,6 @@ def export_nii_segmentation(
     output_label_path: Path to save the combined label file; written as `.seg.nrrd`.
     label_mappings: list of dictionaries mapping original labels to BoneHub labels.
                     When multiple files are given, later files take priority over earlier ones in case of overlapping voxels.
-    status: how these segmentations were produced and reviewed, recorded per segment in the file header.
     """
     if len(input_label_paths) != len(label_mappings):
         raise ValueError("The number of input label paths must match the number of label mappings.")
@@ -104,7 +100,7 @@ def export_nii_segmentation(
             np.copyto(numbers, mapped, where=mapped != 0)
         del mapped
 
-    return write_indexed_segmentation(numbers, bonehub_values, ref_image, output_label_path, status)
+    return write_indexed_segmentation(numbers, bonehub_values, ref_image, output_label_path)
 
 
 def _label_array(image: sitk.Image, path: Path) -> np.ndarray:
@@ -128,7 +124,6 @@ def export_dicom_segmentation(
     output_label_path: Path,
     label_mapping: dict,
     dicom_segment_key: str = "SegmentLabel",
-    status: LabelStatus | dict[int, LabelStatus] = FROM_SOURCE,
 ):
     """
     Converts original DICOM labels to BoneHub standardized labels and saves the result.
@@ -137,7 +132,6 @@ def export_dicom_segmentation(
     output_label_path: Path to save the converted label file; written as `.seg.nrrd`.
     label_mapping: Dictionary mapping original labels to BoneHub labels.
     dicom_segment_key: Key to access the segment label in the DICOM segmentation file. Options: "SegmentLabel" (default) or "SegmentDescription", depending on how the original labels are stored in the DICOM file.
-    status: how these segmentations were produced and reviewed, recorded per segment in the file header.
     """
     seg_dcm = pydicom.dcmread(input_label_path)
     seg_reader = pydicom_seg.MultiClassReader()
@@ -175,7 +169,7 @@ def export_dicom_segmentation(
     seg_resampled = resampler.Execute(seg_image_mapped)
 
     return write_indexed_segmentation(
-        sitk.GetArrayViewFromImage(seg_resampled), bonehub_values, seg_resampled, output_label_path, status
+        sitk.GetArrayViewFromImage(seg_resampled), bonehub_values, seg_resampled, output_label_path
     )
 
 

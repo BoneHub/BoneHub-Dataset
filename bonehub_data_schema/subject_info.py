@@ -3,7 +3,7 @@ from typing import Literal
 from pydantic import BaseModel, Field, field_validator, ConfigDict
 
 from .labelmap import BoneLabelMap
-from .label_status import LabelStatus
+from .label_status import check_label_status
 
 _BONE_LABELS = BoneLabelMap.get_names_list()
 
@@ -13,7 +13,7 @@ LabelKind = Literal["segmentation", "mesh", "nurbs"]
 def _check_label_status(label, value) -> None:
     if label not in _BONE_LABELS:
         raise ValueError(f"Invalid label: {label}. Refer to 'bonehub_data_schema/labelmap.py' to see valid labels.")
-    LabelStatus(value)  # raises ValueError for an invalid code
+    check_label_status(value)
 
 
 class SubjectInfo(BaseModel):
@@ -30,9 +30,9 @@ class SubjectInfo(BaseModel):
     vital_status: str | None = Field(None, description="Vital status of the subject (e.g., alive, deceased)")
     imaging_modality: str | None = Field(None, description="Imaging modality used (e.g., CT, MRI)")
     image: bool = Field(..., description="Availability value for the image (`true` or `false`)")
-    segmentation: dict | None = Field(None, description="Dictionary mapping LabelMap labels to LabelStatus codes")
-    mesh: dict | None = Field(None, description="Dictionary mapping LabelMap labels to LabelStatus codes")
-    nurbs: dict | None = Field(None, description="Dictionary mapping LabelMap labels to LabelStatus codes")
+    segmentation: dict | None = Field(None, description="Dictionary mapping LabelMap labels to label status values")
+    mesh: dict | None = Field(None, description="Dictionary mapping LabelMap labels to label status values")
+    nurbs: dict | None = Field(None, description="Dictionary mapping LabelMap labels to label status values")
     remarks: str | None = Field(None, description="Any additional remarks or notes about the subject")
 
     model_config = ConfigDict(strict=True, extra="forbid", validate_assignment=True, arbitrary_types_allowed=False)
@@ -47,7 +47,7 @@ class SubjectInfo(BaseModel):
     @field_validator("segmentation", "mesh", "nurbs")
     @classmethod
     def check_label_dict(cls, v):
-        """Validate that the keys are valid labels and the values valid LabelStatus codes."""
+        """Validate that the keys are valid labels and the values valid label status values."""
         if v is not None:
             for label, val in v.items():
                 _check_label_status(label, val)
@@ -70,26 +70,21 @@ class SubjectInfo(BaseModel):
         return sorted_dict
 
     def set_segmentation_value(self, label: str, value: int):
-        """Set the LabelStatus code of a label's segmentation."""
+        """Set the label status of a label's segmentation."""
         self._set_status("segmentation", label, value)
 
     def set_mesh_value(self, label: str, value: int):
-        """Set the LabelStatus code of a label's mesh."""
+        """Set the label status of a label's mesh."""
         self._set_status("mesh", label, value)
 
     def set_nurbs_value(self, label: str, value: int):
-        """Set the LabelStatus code of a label's NURBS surface."""
+        """Set the label status of a label's NURBS surface."""
         self._set_status("nurbs", label, value)
 
     def available_labels(self, kind: LabelKind) -> list[str]:
-        """Labels that have a file of this kind, whatever its review, in label map order."""
+        """Labels that have a file of this kind (status 1 or 2), in label map order."""
         statuses = getattr(self, kind) or {}
-        return [label for label in _BONE_LABELS if label in statuses and LabelStatus(statuses[label]).is_available]
-
-    def usable_labels(self, kind: LabelKind) -> list[str]:
-        """Labels whose file of this kind exists and has not failed review, in label map order."""
-        statuses = getattr(self, kind) or {}
-        return [label for label in _BONE_LABELS if label in statuses and LabelStatus(statuses[label]).is_usable]
+        return [label for label in _BONE_LABELS if statuses.get(label, 0) > 0]
 
     def _set_status(self, kind: LabelKind, label: str, value: int):
         _check_label_status(label, value)
@@ -97,4 +92,4 @@ class SubjectInfo(BaseModel):
         if statuses is None:
             statuses = {}
             object.__setattr__(self, kind, statuses)
-        statuses[label] = int(value)
+        statuses[label] = value
