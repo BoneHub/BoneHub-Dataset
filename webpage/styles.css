@@ -9,6 +9,9 @@
     --hover-color: #f1f3f5;
     --link-color: #3498db;
     --link-hover: #2980b9;
+    /* Gender colors shared by the gender bars and the population pyramid */
+    --series-male: #5795e0;
+    --series-female: #f07fce;
 }
 
 * {
@@ -257,6 +260,18 @@ section h2 {
     background: linear-gradient(90deg, #b45309, #f59e0b);
 }
 
+.overview-bar-fill.fill-male {
+    background: var(--series-male);
+}
+
+.overview-bar-fill.fill-female {
+    background: var(--series-female);
+}
+
+.overview-bar-fill.fill-neutral {
+    background: #b3bfcb;
+}
+
 .overview-list {
     display: grid;
     gap: 0.55rem;
@@ -288,6 +303,134 @@ section h2 {
 
 .overview-empty {
     color: #627484;
+}
+
+/* Population Pyramid (Dataset Overview) */
+.population-panel {
+    margin-top: 1rem;
+}
+
+.population-chart {
+    position: relative;
+}
+
+.population-svg {
+    display: block;
+}
+
+.population-grid {
+    stroke: #e4ebf2;
+    stroke-width: 1;
+}
+
+.population-baseline {
+    stroke: #b9c7d5;
+    stroke-width: 1;
+}
+
+.population-tick {
+    fill: #617488;
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+}
+
+.population-axis-title {
+    fill: #5b6c7a;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.population-side-label {
+    fill: #3f556b;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.population-side-count {
+    fill: #617488;
+    font-weight: 600;
+}
+
+.population-bar.series-male {
+    fill: var(--series-male);
+}
+
+.population-bar.series-female {
+    fill: var(--series-female);
+}
+
+.population-wash {
+    fill: rgba(52, 152, 219, 0.08);
+    opacity: 0;
+    transition: opacity 0.15s ease;
+}
+
+.population-bin:hover .population-wash,
+.population-bin:focus-within .population-wash {
+    opacity: 1;
+}
+
+.population-hit {
+    fill: transparent;
+    outline: none;
+}
+
+.population-hit:focus-visible {
+    stroke: var(--secondary-color);
+    stroke-width: 2;
+}
+
+.population-tooltip {
+    position: absolute;
+    min-width: 150px;
+    padding: 0.55rem 0.75rem;
+    border: 1px solid #d8e6f4;
+    border-radius: 8px;
+    background-color: #ffffff;
+    box-shadow: 0 6px 18px rgba(44, 62, 80, 0.14);
+    color: #304a62;
+    font-size: 0.85rem;
+    line-height: 1.45;
+    pointer-events: none;
+}
+
+.population-tooltip-title {
+    margin-bottom: 0.2rem;
+    color: #2a4662;
+    font-weight: 700;
+}
+
+.population-tooltip-row {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+}
+
+.population-tooltip-row strong {
+    min-width: 2.5rem;
+    color: #1f3f5f;
+    font-variant-numeric: tabular-nums;
+}
+
+.population-key {
+    width: 12px;
+    height: 3px;
+    border-radius: 2px;
+}
+
+.population-key.series-male {
+    background-color: var(--series-male);
+}
+
+.population-key.series-female {
+    background-color: var(--series-female);
+}
+
+.population-tooltip-foot {
+    margin-top: 0.25rem;
+    padding-top: 0.25rem;
+    border-top: 1px solid #e7eef5;
+    color: #5b6c7a;
 }
 
 /* Search Section */
