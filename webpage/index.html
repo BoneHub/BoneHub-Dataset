@@ -85,40 +85,12 @@
                     </ol>
                 </div>
             </div>
-        </section>
 
-        <section class="datasets-section">
-            <h2>🗂️ Browse Datasets</h2>
-            <div class="search-controls">
-                <input type="text" id="datasetSearchInput" placeholder="Search datasets..."
-                    aria-label="Search datasets">
-                <button id="clearDatasetFilters" class="btn-secondary">Clear Filters</button>
-                <button id="toggleDatasetColumns" class="btn-secondary">Show/Hide Columns</button>
-                <button id="exportDatasetsCSV" class="btn-export">📥 Export to CSV</button>
-            </div>
-            <div class="stats">
-                <span id="datasetCount">Loading datasets...</span>
-            </div>
-            <div id="datasetColumnToggles" class="column-toggles" style="display: none;">
-                <h3>Select Columns to Display</h3>
-                <div id="datasetColumnCheckboxes" class="checkbox-grid">
-                    <!-- Dataset column checkboxes will be dynamically generated -->
+            <div class="overview-panel population-panel">
+                <h3>Population Distribution</h3>
+                <div id="overviewPopulation" class="population-chart">
+                    <!-- Age-gender pyramid is rendered by overview.js -->
                 </div>
-            </div>
-            <div class="table-container compact-table-container">
-                <table id="datasetsTable">
-                    <thead>
-                        <tr id="datasetsTableHeader">
-                            <!-- Dataset headers will be dynamically generated -->
-                        </tr>
-                        <tr id="datasetsFilterRow">
-                            <!-- Dataset filters will be dynamically generated -->
-                        </tr>
-                    </thead>
-                    <tbody id="datasetsTableBody">
-                        <!-- Dataset rows will be dynamically generated -->
-                    </tbody>
-                </table>
             </div>
         </section>
 
@@ -153,6 +125,41 @@
                     </thead>
                     <tbody id="tableBody">
                         <!-- Data rows will be dynamically generated -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="datasets-section">
+            <h2>🗂️ Browse Datasets</h2>
+            <div class="search-controls">
+                <input type="text" id="datasetSearchInput" placeholder="Search datasets..."
+                    aria-label="Search datasets">
+                <button id="clearDatasetFilters" class="btn-secondary">Clear Filters</button>
+                <button id="toggleDatasetColumns" class="btn-secondary">Show/Hide Columns</button>
+                <button id="exportDatasetsCSV" class="btn-export">📥 Export to CSV</button>
+            </div>
+            <div class="stats">
+                <span id="datasetCount">Loading datasets...</span>
+            </div>
+            <div id="datasetColumnToggles" class="column-toggles" style="display: none;">
+                <h3>Select Columns to Display</h3>
+                <div id="datasetColumnCheckboxes" class="checkbox-grid">
+                    <!-- Dataset column checkboxes will be dynamically generated -->
+                </div>
+            </div>
+            <div class="table-container compact-table-container">
+                <table id="datasetsTable">
+                    <thead>
+                        <tr id="datasetsTableHeader">
+                            <!-- Dataset headers will be dynamically generated -->
+                        </tr>
+                        <tr id="datasetsFilterRow">
+                            <!-- Dataset filters will be dynamically generated -->
+                        </tr>
+                    </thead>
+                    <tbody id="datasetsTableBody">
+                        <!-- Dataset rows will be dynamically generated -->
                     </tbody>
                 </table>
             </div>
