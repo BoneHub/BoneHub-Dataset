@@ -966,6 +966,12 @@ footer a:hover {
     color: #666;
 }
 
+/* Spans all columns, so it must not pick up the sticky first-column styling */
+td.empty-state {
+    position: static;
+    font-weight: normal;
+}
+
 /* Column Toggles */
 .column-toggles {
     margin-top: 1rem;

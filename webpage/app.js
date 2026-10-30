@@ -474,6 +474,11 @@ function applyColumnVisibility(state) {
     });
 
     Array.from(tbody.children).forEach(tr => {
+        // The empty-state row is a single cell spanning all columns, not column 0
+        if (tr.querySelector('.empty-state')) {
+            return;
+        }
+
         Array.from(tr.children).forEach((td, index) => {
             toggleColumnVisibility(td, state.visibleColumns.has(state.allColumns[index]));
         });
@@ -511,7 +516,8 @@ function updateStickyColumnOffsets(state) {
     table.style.setProperty('--sticky-first-column-width', `${firstColumnWidth}px`);
     table.style.setProperty('--sticky-second-column-width', `${secondColumnWidth}px`);
 
-    if (tbody && tbody.children.length > 0) {
+    // Skip the empty-state row: its full-width cell would be measured as column 0
+    if (tbody && tbody.children.length > 0 && !tbody.querySelector('.empty-state')) {
         const firstRow = tbody.children[0];
         const firstCell = firstRow.children[0];
         const secondCell = firstRow.children[1];
