@@ -9,7 +9,6 @@ from bonehub_data_schema import BoneHubDatasetIO
 
 import bonehub_dataset_converter.custom_dataset_io as custom_dataset_io
 
-
 _BONEHUB_DATASET_ROOT = Path("./tests/dummy_bonehub_dataset")
 
 
@@ -84,7 +83,9 @@ class TestACRIN6664(unittest.TestCase):
 # @unittest.skip("")
 class TestVSDReconstruction(unittest.TestCase):
     def test_convert(self):
-        data_root = Path("Z:/BoneHub/Public_Datasets/036 VSDFullBodyBoneReconstruction/Hamid_processed/vsd-lower-extremities-seg")
+        data_root = Path(
+            "Z:/BoneHub/Public_Datasets/036 VSDFullBodyBoneReconstruction/Hamid_processed/vsd-lower-extremities-seg"
+        )
         public_dataset = custom_dataset_io.VSDReconstruction(data_root)
         public_dataset.export_to_bonehub_format(output_root=_BONEHUB_DATASET_ROOT, output_dataset_id=5, overwrite=True)
 
@@ -143,6 +144,7 @@ class TestPENGWIN(unittest.TestCase):
         self.assertEqual(len(dataset), 2)
         self.assertTrue(dataset.check_dataset_integrity())
 
+
 class TestCTPEL(unittest.TestCase):
     def test_convert(self):
         data_root = Path("Z:/BoneHub/Public_Datasets/138 CTPEL")
@@ -156,6 +158,22 @@ class TestCTPEL(unittest.TestCase):
         self.assertEqual(dataset.subject_info[0].subject_id, 1)
         self.assertEqual(len(dataset), 2)
         self.assertTrue(dataset.check_dataset_integrity())
+
+
+class TestVSDFullBody(unittest.TestCase):
+    def test_convert(self):
+        data_root = Path("Z:/BoneHub/Public_Datasets/071 VSDFullBody")
+        public_dataset = custom_dataset_io.VSDFullBody(data_root)
+        public_dataset.export_to_bonehub_format(output_root=_BONEHUB_DATASET_ROOT, output_dataset_id=11, overwrite=True)
+
+    def test_read(self):
+        dataset = BoneHubDatasetIO(_BONEHUB_DATASET_ROOT, dataset_id=11)
+
+        self.assertEqual(dataset.dataset_info.dataset_id, 11)
+        self.assertEqual(dataset.subject_info[0].subject_id, 1)
+        self.assertEqual(len(dataset), 2)
+        self.assertTrue(dataset.check_dataset_integrity())
+
 
 if __name__ == "__main__":
     unittest.main()

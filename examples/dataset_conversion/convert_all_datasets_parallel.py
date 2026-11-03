@@ -73,7 +73,9 @@ DATASET_JOBS: tuple[DatasetJob, ...] = (
         name="vsd_reconstruction",
         dataset_id=5,
         dataset_class=custom_dataset_io.VSDReconstruction,
-        source_root=Path("Z:/BoneHub/Public_Datasets/036 VSDFullBodyBoneReconstruction/Hamid_processed/vsd-lower-extremities-seg"),
+        source_root=Path(
+            "Z:/BoneHub/Public_Datasets/036 VSDFullBodyBoneReconstruction/Hamid_processed/vsd-lower-extremities-seg"
+        ),
     ),
     DatasetJob(
         name="totalsegmentator_ct",
@@ -104,6 +106,12 @@ DATASET_JOBS: tuple[DatasetJob, ...] = (
         dataset_id=10,
         dataset_class=custom_dataset_io.SynthRAD2023,
         source_root=Path("Z:/BoneHub/Public_Datasets/006 SynthRAD2023"),
+    ),
+    DatasetJob(
+        name="vsd_full_body",
+        dataset_id=11,
+        dataset_class=custom_dataset_io.VSDFullBody,
+        source_root=Path("Z:/BoneHub/Public_Datasets/071 VSDFullBody"),
     ),
 )
 
@@ -149,8 +157,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--skip-existing-images",
         action="store_true",
-        help="Keep exported images whose source subject is unchanged and regenerate everything else. "
-        "Implies --overwrite.",
+        help="Keep exported images whose source subject is unchanged and regenerate everything else. " "Implies --overwrite.",
     )
     parser.add_argument(
         "--skip-existing-subjects",
@@ -202,7 +209,9 @@ def setup_run_logger(output_root: Path) -> logging.Logger:
     return logger
 
 
-def log_summary(logger: logging.Logger, successes: list[tuple[DatasetJob, Path]], failures: list[tuple[DatasetJob, Exception]]) -> None:
+def log_summary(
+    logger: logging.Logger, successes: list[tuple[DatasetJob, Path]], failures: list[tuple[DatasetJob, Exception]]
+) -> None:
     lines = [f"Conversion summary: {len(successes)} succeeded, {len(failures)} failed."]
     for job, log_file_path in sorted(successes, key=lambda item: item[0].dataset_id):
         lines.append(f"  [OK]     {job.name} (Dataset_{job.dataset_id:03d}), log: {log_file_path}")
