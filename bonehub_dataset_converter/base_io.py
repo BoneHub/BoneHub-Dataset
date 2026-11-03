@@ -7,6 +7,7 @@ import shutil
 import logging
 import logging.handlers
 import multiprocessing
+import time
 from typing import Callable
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from concurrent.futures.process import BrokenProcessPool
@@ -118,6 +119,9 @@ class BaseDatasetIO:
         dataset_info (DatasetInfo): Information about the dataset to be included in the metadata.
     """
 
+    # Default number of subjects converted at once; datasets that need much memory per subject set fewer.
+    max_workers: int = DEFAULT_MAX_WORKERS
+
     def __init__(self, dataset_root: Path, dataset_info: DatasetInfo):
         self.dataset_root = dataset_root
         self.dataset_info = dataset_info
@@ -217,7 +221,7 @@ class BaseDatasetIO:
             output_dataset_id (int): The dataset ID to assign to the exported dataset.
             overwrite (bool): Whether to write into an existing dataset directory. Default is False.
             num_workers (int): Subjects converted at once, each in its own process. Default is None: the number of
-                CPU cores, at most DEFAULT_MAX_WORKERS.
+                CPU cores, at most the class's max_workers (DEFAULT_MAX_WORKERS unless the dataset sets fewer).
             skip_existing_subjects (bool): only process subjects that have not been processed before (based on the existing subject_info JSON file). Default is False.
             skip_existing_images (bool): keep already exported images whose source subject is unchanged, and
                 regenerate everything else. Requires overwrite=True. Default is False.
@@ -332,16 +336,19 @@ class BaseDatasetIO:
 
         # Worker processes are spawned, so scripts calling this need an `if __name__ == "__main__":` guard.
         if num_workers is None:
-            num_workers = min(os.cpu_count() or 4, DEFAULT_MAX_WORKERS)
+            num_workers = min(os.cpu_count() or 4, self.max_workers)
         context = multiprocessing.get_context("spawn")
         log_queue = context.Queue()
         log_listener = logging.handlers.QueueListener(log_queue, log_handler)
         log_listener.start()
         failed_subject_ids = []
+        last_save = time.monotonic()
 
         def save_subject_info():
+            nonlocal last_save
             with open(subject_info_path, "w") as f:
                 json.dump(subject_info, f, indent=4)
+            last_save = time.monotonic()
             self.logger.info(
                 f"Updated {subject_info_path.name} ({sum(x is not None for x in subject_info)}/{len(subject_info)} subjects)"
             )
@@ -385,7 +392,9 @@ class BaseDatasetIO:
                             self.logger.exception(f"Subject {subject_id} failed (source: '{source}').")
                         continue
                     converted_count += 1
-                    if converted_count % 10 == 0:  # Write every 10 subjects instead of on every one, to spare the disk.
+                    # Write every 10 subjects or every minute, not on every one, to spare the disk; the time limit
+                    # keeps the progress of slow datasets if a run is stopped.
+                    if converted_count % 10 == 0 or time.monotonic() - last_save >= 60:
                         save_subject_info()
                 save_subject_info()  # Final write, so the last subjects and any failures are recorded too.
         finally:

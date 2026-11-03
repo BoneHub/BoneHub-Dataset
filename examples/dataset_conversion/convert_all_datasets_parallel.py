@@ -146,8 +146,9 @@ def parse_args() -> argparse.Namespace:
         type=int,
         default=None,
         help="Subjects converted at once within each dataset, each in its own process "
-        "(default: one per CPU core, at most 8). Up to max-workers x subject-workers processes run "
-        "together, each needing up to ~2 GB for the largest masks; lower it if memory runs out.",
+        "(default: one per CPU core, at most 8, or 4 for vsd_full_body). Up to max-workers x subject-workers "
+        "processes run together, each needing up to ~2 GB for the largest masks (~5 GB for vsd_full_body); "
+        "lower it if memory runs out.",
     )
     parser.add_argument(
         "--quiet",
