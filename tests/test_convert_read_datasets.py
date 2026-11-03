@@ -7,7 +7,14 @@ import unittest
 
 from bonehub_data_schema import BoneHubDatasetIO
 
-import bonehub_dataset_converter.custom_dataset_io as custom_dataset_io
+try:
+    import bonehub_dataset_converter.custom_dataset_io as custom_dataset_io
+except ImportError:
+    custom_dataset_io = None
+
+# custom_dataset_io is a private git submodule; without access its folder is empty.
+if not hasattr(custom_dataset_io, "__all__"):
+    raise unittest.SkipTest("custom_dataset_io submodule is not available.")
 
 _BONEHUB_DATASET_ROOT = Path("./tests/dummy_bonehub_dataset")
 
