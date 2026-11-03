@@ -33,7 +33,7 @@ The heavier tooling is opt-in, so nothing pulls in torch, monai or ITK unless as
 
 ```bash
 pip install -e ".[io]"              # + reading/writing segmentation files (numpy, SimpleITK)
-pip install -e ".[converter]"       # + dataset conversion (monai, pydicom, ITK, pandas, ...)
+pip install -e ".[converter]"       # + dataset conversion (pydicom, SimpleITK, pandas, ...)
 pip install -e ".[segmentation]"    # + segmentation models (torch, torchvision, monai, ...)
 pip install -e ".[all]"             # everything
 ```

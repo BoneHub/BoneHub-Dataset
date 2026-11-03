@@ -24,7 +24,7 @@ from bonehub_data_schema import (
 )
 
 
-# Each worker process loads MONAI, torch and ITK (~0.4 GB), so keep the default modest.
+# Each worker process loads its own ITK and holds whole volumes in memory, so keep the default modest.
 DEFAULT_MAX_WORKERS = 8
 
 
@@ -50,7 +50,7 @@ def _format_ids(ids: list[int], limit: int = 20) -> str:
 
 
 def _init_subject_worker(log_queue, logger_name: str) -> None:
-    """Forward the worker's log records and warnings to the parent and keep ITK/torch single-threaded."""
+    """Forward the worker's log records and warnings to the parent and keep ITK single-threaded."""
     for name in (logger_name, "py.warnings"):
         logger = logging.getLogger(name)
         logger.handlers = [logging.handlers.QueueHandler(log_queue)]
@@ -58,12 +58,6 @@ def _init_subject_worker(log_queue, logger_name: str) -> None:
         logger.propagate = False
     logging.captureWarnings(True)
     sitk.ProcessObject.SetGlobalDefaultNumberOfThreads(1)
-    try:
-        import torch
-
-        torch.set_num_threads(1)
-    except ImportError:
-        pass
 
 
 class DataSource(BaseModel):

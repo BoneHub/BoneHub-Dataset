@@ -1,8 +1,6 @@
 import os
-import shutil
 from pathlib import Path
 import numpy as np
-from monai.transforms import LoadImaged, SaveImaged, Compose
 import pydicom
 import pydicom_seg
 import SimpleITK as sitk
@@ -10,40 +8,22 @@ import SimpleITK as sitk
 from bonehub_data_schema import segment_number_dtype, write_indexed_segmentation
 
 
-def export_image_monai(input_image_path: Path, output_image_path: Path):
+def export_image(input_image_path: Path, output_image_path: Path):
     """
-    Converts original images to NIfTI format (nii.gz) and saves the result.
-    input_image_path: Path to the original image file or folder (in case of DICOM series).
+    Converts original images to float32 NIfTI format (nii.gz) and saves the result.
+    input_image_path: Path to the original image file or folder (in case of DICOM series; the first series found is used).
     output_image_path: Path to save the converted image file ending with `.nii.gz`.
     """
-    temp_folder = output_image_path.parent / f"temp_{output_image_path.name}"
-    os.makedirs(temp_folder, exist_ok=True)
-    transform = Compose(
-        [
-            LoadImaged(
-                keys=["image"],
-                image_only=False,
-                reader="ITKReader",
-            ),
-            SaveImaged(
-                keys=["image"],
-                output_dir=str(temp_folder),
-                output_postfix="",
-                output_ext=".nii.gz",
-                resample=False,
-                separate_folder=False,
-                print_log=False,
-            ),
-        ]
-    )
-
-    # Save and rename to desired output path
-    transform({"image": str(input_image_path)})
-    saved_file = temp_folder / (Path(input_image_path).name)
-    if not str(saved_file).endswith(".nii.gz"):
-        saved_file = saved_file.with_suffix(".nii.gz")
-    shutil.move(saved_file, output_image_path)
-    shutil.rmtree(temp_folder, ignore_errors=True)
+    if Path(input_image_path).is_dir():
+        series_reader = sitk.ImageSeriesReader()
+        series_files = series_reader.GetGDCMSeriesFileNames(str(input_image_path))
+        if not series_files:
+            raise FileNotFoundError(f"No DICOM series found in '{input_image_path}'.")
+        series_reader.SetFileNames(series_files)
+        image = series_reader.Execute()
+    else:
+        image = sitk.ReadImage(str(input_image_path))
+    sitk.WriteImage(sitk.Cast(image, sitk.sitkFloat32), str(output_image_path), useCompression=True)
 
 
 def export_nii_segmentation(
