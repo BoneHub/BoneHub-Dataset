@@ -28,9 +28,9 @@ io = [
 ]
 # Converting third-party datasets into BoneHub data structure format.
 converter = [
-    "numpy==1.26.4",
-    "pydicom==2.4.4",
-    "pydicom-seg==0.4.1",
+    "numpy",
+    "pydicom>=3.0.1",
+    "highdicom>=0.28",
     "nibabel",
     "SimpleITK",
     "pandas",
@@ -39,7 +39,7 @@ converter = [
 ]
 # Running the segmentation models.
 segmentation = [
-    "numpy==1.26.4",
+    "numpy",
     "monai",
     "torch",
     "torchvision",

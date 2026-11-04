@@ -1,8 +1,8 @@
 import os
 from pathlib import Path
+import highdicom
 import numpy as np
 import pydicom
-import pydicom_seg
 import SimpleITK as sitk
 
 from bonehub_data_schema import segment_number_dtype, write_indexed_segmentation
@@ -98,6 +98,21 @@ def _unique_labels(array: np.ndarray, slices: int = 32) -> set[int]:
     return {int(v) for z in range(0, array.shape[0], slices) for v in np.unique(array[z : z + slices])}
 
 
+def _read_dicom_seg(path: Path) -> tuple[sitk.Image, dict]:
+    """
+    A DICOM SEG as an image of its segment numbers (0 for background), and the description of each segment by
+    segment number. Overlapping segments raise an error.
+    """
+    seg = highdicom.seg.segread(path)
+    volume = seg.get_volume(combine_segments=True)
+    # The volume's array axes (0, 1, 2) are SimpleITK's (z, y, x).
+    image = sitk.GetImageFromArray(volume.array)
+    image.SetOrigin(volume.position)
+    image.SetSpacing(volume.spacing[::-1])
+    image.SetDirection(volume.direction[:, ::-1].flatten().tolist())
+    return image, {int(item.SegmentNumber): item for item in seg.SegmentSequence}
+
+
 def export_dicom_segmentation(
     input_image_path: Path,
     input_label_path: Path,
@@ -113,15 +128,12 @@ def export_dicom_segmentation(
     label_mapping: Dictionary mapping original labels to BoneHub labels.
     dicom_segment_key: Key to access the segment label in the DICOM segmentation file. Options: "SegmentLabel" (default) or "SegmentDescription", depending on how the original labels are stored in the DICOM file.
     """
-    seg_dcm = pydicom.dcmread(input_label_path)
-    seg_reader = pydicom_seg.MultiClassReader()
-    seg_result = seg_reader.read(seg_dcm)
-    seg_image = seg_result.image
+    seg_image, segment_infos = _read_dicom_seg(input_label_path)
     seg_array = _label_array(seg_image, input_label_path)
 
     # Map each DICOM segment to a BoneHub segment number 1..N
     bonehub_of = {}
-    for orig_label, info in seg_result.segment_infos.items():
+    for orig_label, info in segment_infos.items():
         seg_label_name = getattr(info, dicom_segment_key, None)
         if seg_label_name is None:
             raise ValueError(f"Segment info for label {orig_label} does not contain key '{dicom_segment_key}'.")
